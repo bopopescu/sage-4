@@ -2272,6 +2272,10 @@ class LPAbstractDictionary(SageObject):
             LP problem dictionary (use typeset mode to see details)
         """
         return "LP problem dictionary (use typeset mode to see details)"
+    
+    def add_row(self):
+        #to be implemented in LPDictionary and LPRevisedDictionary
+        raise NotImplementedError 
 
     def base_ring(self):
         r"""
@@ -2340,6 +2344,14 @@ class LPAbstractDictionary(SageObject):
         v = [value for _, value in vv]
         return vector(self.base_ring(),
                       v if include_slack_variables else v[:len(N)])
+    
+    def basic_variables(self):
+        
+        raise NotImplementedError
+
+    def constant_terms(self):
+        
+        raise NotImplementedError
 
     def coordinate_ring(self):
         r"""
@@ -3051,9 +3063,15 @@ class LPDictionary(LPAbstractDictionary):
             
         """
 
-        A, b, c, v, B, N, z = self._AbcvBNz
-        m = A.nrows()
-        n = A.ncols()
+        B = self.basic_variables()
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        n = len(N)
+        m = len(B)
+        A = [self.row_coefficients(i) for i in range (m)]
+        A = tuple(A)
+        A = matrix(QQ, A)
+        
         if all(i.is_integer() for i in b):
             raise ValueError("The solution are all integer. There is no way to add a cut.")
         if basic_variable != None:
@@ -3061,6 +3079,7 @@ class LPDictionary(LPAbstractDictionary):
             choose_variable = basic_variable
             variable_index = list(B).index(choose_variable)
         else:
+            print n,m,"in else"
             variable_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
             variable_index = variable_list.index(min(variable_list))
             choose_variable = B[variable_index]
@@ -3104,46 +3123,7 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[4] = B2
         self._AbcvBNz[5] = N2
 
-    def run_cutting_plane_algorithm(self):
-        r"""
 
-        Perform the cutting plane method to solve a ILP problem.
-
-        OUTPUT:
-
-        -a number which is the total number of cuts need to solve a 
-        ILP problem by Gomory fractional Cut
-
-        EXAMPLES::
-
-            sage: A = ([-1, 1], [8, 2])
-            sage: b = (2, 17)
-            sage: c = (55/10, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.final_dictionary()
-            sage: number_of_cut = D.run_cutting_plane_algorithm()
-            sage: number_of_cut
-            5
-            sage: A = ([-8, 1], [8, 1])
-            sage: b = (0, 8)
-            sage: c = (-1/27, 1/31)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.final_dictionary()
-            sage: number_of_cut = D.run_cutting_plane_algorithm()
-            sage: number_of_cut
-            9
-
-        """
-        d = self
-        number_of_cut = 0
-        while True:
-            d.add_a_cut()
-            d.run_dual_simplex_method()
-            A, b, c, v, B, N, z = d._AbcvBNz
-            number_of_cut += 1
-            if all(i.is_integer() for i in b):
-                break
-        return number_of_cut
 
     def ELLUL(self, entering, leaving):
         r"""
@@ -3388,6 +3368,24 @@ class LPDictionary(LPAbstractDictionary):
         """
         print self._objective_variable  
 
+    def row_coefficients(self, row_index):
+        r"""
+        Return the coefficients of a given row of the matrix A
+
+        INPUT:
+
+        - a integer giving the row index of the matrix A
+
+        OUTPUT:
+
+        - a vector of coefficients for a given row of the matrix A
+
+        """
+        basic_variables = self.basic_variables()
+        leaving_variable = basic_variables[row_index]
+        self.leave(leaving_variable)
+        return self.leaving_coefficients()
+
     def run_dual_simplex_method(self):
         r"""
         Apply the dual simplex method to solve a dictionary with an added Gomory 
@@ -3542,6 +3540,46 @@ class LPDictionary(LPAbstractDictionary):
         self._entering = None
         self._leaving = None
 
+    def run_cutting_plane_algorithm(self):
+        r"""
+
+        Perform the cutting plane method to solve a ILP problem.
+
+        OUTPUT:
+
+        -a number which is the total number of cuts need to solve a 
+        ILP problem by Gomory fractional Cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: number_of_cut = D.run_cutting_plane_algorithm()
+            sage: number_of_cut
+            5
+            sage: A = ([-8, 1], [8, 1])
+            sage: b = (0, 8)
+            sage: c = (-1/27, 1/31)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: number_of_cut = D.run_cutting_plane_algorithm()
+            sage: number_of_cut
+            9
+
+        """
+        d = self
+        number_of_cut = 0
+        while True:
+            d.add_a_cut()
+            d.run_dual_simplex_method()
+            A, b, c, v, B, N, z = d._AbcvBNz
+            number_of_cut += 1
+            if all(i.is_integer() for i in b):
+                break
+        return number_of_cut
 
 def random_dictionary(m, n, bound=5, special_probability=0.2):
     r"""
@@ -3584,6 +3622,8 @@ def random_dictionary(m, n, bound=5, special_probability=0.2):
     for i in range(m):
         x_B.append(x_N.pop(randint(0, n + m - i - 1)))
     return LPDictionary(A, b, c, randint(-bound, bound), x_B, x_N, "z")
+
+    
 
 
 class LPRevisedDictionary(LPAbstractDictionary):
@@ -3958,6 +3998,10 @@ class LPRevisedDictionary(LPAbstractDictionary):
         """
         return column_matrix(self.problem().base_ring(),
                              [self.A(x) for x in self.x_N()])
+    # def add_row(self):
+    #     ###Transform to original variables
+    #     ###Add to the problem
+    #     ###Update the revised dictionary's basis
 
     def B(self):
         r"""

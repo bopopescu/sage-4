@@ -3023,7 +3023,7 @@ class LPDictionary(LPAbstractDictionary):
         the basic variable that will provide the source row for the cut. 
         -``new_slack_variable`` --(default: None) a string giving
         the name of the new_slack_variable. If the argument is none,
-        the new slack variable will be the prefix + "n" where n is 
+        the new slack variable will be the "xn" where n is 
         the next index of variable list.
 
         OUTPUT:
@@ -3048,7 +3048,7 @@ class LPDictionary(LPAbstractDictionary):
             (-1/10, -4/5)
             sage: D.constant_terms()
             (3.30000000000000, 1.30000000000000, -0.300000000000000)
-
+            
         """
 
         A, b, c, v, B, N, z = self._AbcvBNz
@@ -3070,7 +3070,7 @@ class LPDictionary(LPAbstractDictionary):
         cut_constant = b[variable_index].floor() - b[variable_index]
         if new_slack_variable != None:
             if not isinstance(new_slack_variable, str):
-                add_slack_variable = map(str, new_slack_variable)
+                raise TypeError("entering must be a string of a slack variable name")
             else:
                 add_slack_variable = new_slack_variable
         else:
@@ -3104,10 +3104,15 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[4] = B2
         self._AbcvBNz[5] = N2
 
-    def add_a_cutting_plane(self):
+    def run_cutting_plane_algorithm(self):
         r"""
 
-        Perform the cutting plane method to solve a ILP or MIP problem.
+        Perform the cutting plane method to solve a ILP problem.
+
+        OUTPUT:
+
+        -a number which is the total number of cuts need to solve a 
+        ILP problem by Gomory fractional Cut
 
         EXAMPLES::
 
@@ -3116,8 +3121,17 @@ class LPDictionary(LPAbstractDictionary):
             sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.final_dictionary()
-            sage: D.add_a_cutting_plane()
-            The total number of cuts is  5
+            sage: number_of_cut = D.run_cutting_plane_algorithm()
+            sage: number_of_cut
+            5
+            sage: A = ([-8, 1], [8, 1])
+            sage: b = (0, 8)
+            sage: c = (-1/27, 1/31)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: number_of_cut = D.run_cutting_plane_algorithm()
+            sage: number_of_cut
+            9
 
         """
         d = self
@@ -3129,8 +3143,7 @@ class LPDictionary(LPAbstractDictionary):
             number_of_cut += 1
             if all(i.is_integer() for i in b):
                 break
-            
-        print 'The total number of cuts is ', number_of_cut
+        return number_of_cut
 
     def ELLUL(self, entering, leaving):
         r"""
@@ -3466,18 +3479,9 @@ class LPDictionary(LPAbstractDictionary):
                     break
         if d.is_optimal():
             v = d.objective_value()
-            def basic_solution(d):
-                include_slack_variables = True
-                vv = zip(d.basic_variables(), d.constant_terms())
-                N = d.nonbasic_variables()
-                vv += [(v, 0) for v in N]
-                vv.sort()   # We use neglex order
-                v = [value for _, value in vv]
-                return vector(d.base_ring(),
-                      v if include_slack_variables else v[:len(N)])
             result.append((r"\text{{The optimal value: ${}$. "
                            "An optimal solution: ${}$.}}").format(
-                           latex(v), latex(basic_solution(d))))
+                           latex(v), latex(d.basic_solution(include_slack_variables=True))))
         if generate_real_LaTeX:
             return ("\\begin{gather*}\n\\allowdisplaybreaks\n" +
                     "\\displaybreak[0]\\\\\n".join(result) +

@@ -3079,14 +3079,9 @@ class LPDictionary(LPAbstractDictionary):
             choose_variable = basic_variable
             variable_index = list(B).index(choose_variable)
         else:
-            print n,m,"in else"
             variable_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
             variable_index = variable_list.index(min(variable_list))
             choose_variable = B[variable_index]
-
-        cut_nonbasic_coefficients = [ A[variable_index][i].floor() - 
-                                      A[variable_index][i] for i in range (n)]
-        cut_constant = b[variable_index].floor() - b[variable_index]
         if new_slack_variable != None:
             if not isinstance(new_slack_variable, str):
                 raise TypeError("entering must be a string of a slack variable name")
@@ -3095,6 +3090,56 @@ class LPDictionary(LPAbstractDictionary):
         else:
             cut_index = m + n + 1
             add_slack_variable = SR("x" + str(cut_index))
+
+        self.add_row(A, B, N, b, variable_index, add_slack_variable)
+
+    def add_row(self, A, B, N, b, variable_index, add_slack_variable):
+        r"""
+
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        the basic variable that provides the source row for the cut and a variable name 
+        of a new slack variable
+
+        INPUT:
+
+        - ``A`` -- a matrix of constraint coefficients
+        - ``B`` -- a vector of basic variables
+        - ``N`` -- a vector of nonbasic variables
+        - ``b`` -- a vector of constant terms
+        - ``variable_index`` -- a number indicates the index of the basic variable 
+        that provides the source row for the cut 
+        -- ``add_slack_variable`` -- a string indicates the name of a new slack variable
+
+        OUTPUT:
+
+        - a dictionary with an added cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (5.5, 2.1)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: A, b, c, v, B, N, z = D._AbcvBNz
+            sage: variable_index = 1
+            sage: add_slack_variable = "x5"
+            sage: D.add_row(A, B, N, b, variable_index, add_slack_variable)
+            sage: D.basic_variables()
+            (x2, x1, x5)
+            sage: D.leave(5)
+            sage: D.leaving_coefficients()
+            (-1/10, -4/5)
+            sage: D.constant_terms()
+            (3.30000000000000, 1.30000000000000, -0.300000000000000)
+
+        """
+        n = len(N)
+        m = len(B)
+
+        cut_nonbasic_coefficients = [ A[variable_index][i].floor() - 
+                                      A[variable_index][i] for i in range (n)]
+        cut_constant = b[variable_index].floor() - b[variable_index]
 
         A = A.transpose()
         v = vector(QQ, n, cut_nonbasic_coefficients)
@@ -3122,7 +3167,6 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[1] = b
         self._AbcvBNz[4] = B2
         self._AbcvBNz[5] = N2
-
 
 
     def ELLUL(self, entering, leaving):

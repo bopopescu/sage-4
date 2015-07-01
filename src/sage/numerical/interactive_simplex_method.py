@@ -2272,9 +2272,88 @@ class LPAbstractDictionary(SageObject):
             LP problem dictionary (use typeset mode to see details)
         """
         return "LP problem dictionary (use typeset mode to see details)"
-    
+
+    def add_a_cut(self, basic_variable=None, new_slack_variable=None):
+        r"""
+
+        Update the dictionary by adding a Gomory fractional cut
+
+        INPUT:
+
+        -``basic_variable`` -- (default: None) a string specifying
+        the basic variable that will provide the source row for the cut. 
+        -``new_slack_variable`` --(default: None) a string giving
+        the name of the new_slack_variable. If the argument is none,
+        the new slack variable will be the "xn" where n is 
+        the next index of variable list.
+
+        OUTPUT:
+        
+        -none, but the dictionary will be updated with an additional 
+        row that is constructed from a Gomory fractional cut, while the 
+        source row can be chosen by the user or picked by the most 
+        fractional basic variable
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (5.5, 2.1)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: D.add_a_cut()
+            sage: D.basic_variables()
+            (x2, x1, x5)
+            sage: D.leave(5)
+            sage: D.leaving_coefficients()
+            (-1/10, -4/5)
+            sage: D.constant_terms()
+            (3.30000000000000, 1.30000000000000, -0.300000000000000)
+            
+        """
+
+        B = self.basic_variables()
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        n = len(N)
+        m = len(B)
+        
+        if all(i.is_integer() for i in b):
+            raise ValueError("The solution are all integer. There is no way to add a cut.")
+        if basic_variable != None:
+            basic_variable = variable(self.coordinate_ring(), basic_variable)
+            choose_variable = basic_variable
+            variable_index = list(B).index(choose_variable)
+        else:
+            variable_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
+            variable_index = variable_list.index(min(variable_list))
+            choose_variable = B[variable_index]
+        if new_slack_variable != None:
+            if not isinstance(new_slack_variable, str):
+                raise TypeError("entering must be a string of a slack variable name")
+            else:
+                add_slack_variable = new_slack_variable
+        else:
+            cut_index = m + n + 1
+            add_slack_variable = SR("x" + str(cut_index))
+
+        A_ith_row = self.row_coefficients(variable_index)
+
+        cut_nonbasic_coefficients = [ A_ith_row[i].floor() - 
+                                      A_ith_row[i] for i in range (n)]
+        cut_constant = b[variable_index].floor() - b[variable_index]
+        
+        self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable)
+
     def add_row(self):
-        #to be implemented in LPDictionary and LPRevisedDictionary
+        r"""
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        an indicated basic variable that provides the source row and a variable name 
+        for a new slack variable
+
+        See add_row() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
         raise NotImplementedError 
 
     def base_ring(self):
@@ -2346,11 +2425,22 @@ class LPAbstractDictionary(SageObject):
                       v if include_slack_variables else v[:len(N)])
     
     def basic_variables(self):
-        
+        r"""
+        Return the basic variables of ``self``.
+
+        See basic_variables() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
         raise NotImplementedError
 
     def constant_terms(self):
-        
+        r"""
+        Return constant terms in the relations of ``self``.
+
+        See constant_terms() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
+
         raise NotImplementedError
 
     def coordinate_ring(self):
@@ -3024,35 +3114,33 @@ class LPDictionary(LPAbstractDictionary):
             lines[l] = line
         return  "\n".join(lines)
 
-    def add_a_cut(self, basic_variable=None, new_slack_variable=None):
+    def add_row(self, nonbasic_coefficients, constant, slack_variable):
         r"""
-
-        Update the dictionary by adding a Gomory fractional cut
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        an indicated basic variable that provides the source row and a variable name 
+        for a new slack variable
 
         INPUT:
 
-        -``basic_variable`` -- (default: None) a string specifying
-        the basic variable that will provide the source row for the cut. 
-        -``new_slack_variable`` --(default: None) a string giving
-        the name of the new_slack_variable. If the argument is none,
-        the new slack variable will be the "xn" where n is 
-        the next index of variable list.
+        -``nonbasic_coefficients``-- a list of the coefficients for the new row
+        -``constant``-- a number of the constant term for the new row
+        -``slack_variable``-- a string of the name for the new slack variable
 
         OUTPUT:
-        
-        -none, but the dictionary will be updated with an additional 
-        row that is constructed from a Gomory fractional cut, while the 
-        source row can be chosen by the user or picked by the most 
-        fractional basic variable
 
-        TESTS::
+        - a dictionary with an added row
+
+        EXAMPLES::
 
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (5.5, 2.1)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.final_dictionary()
-            sage: D.add_a_cut()
+            sage: cut_nonbasic_coefficients = [-1/10, -4/5]
+            sage: cut_constant = -3/10
+            sage: add_slack_variable = "x5"
+            sage: D.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable)
             sage: D.basic_variables()
             (x2, x1, x5)
             sage: D.leave(5)
@@ -3060,7 +3148,7 @@ class LPDictionary(LPAbstractDictionary):
             (-1/10, -4/5)
             sage: D.constant_terms()
             (3.30000000000000, 1.30000000000000, -0.300000000000000)
-            
+
         """
 
         B = self.basic_variables()
@@ -3071,93 +3159,25 @@ class LPDictionary(LPAbstractDictionary):
         A = [self.row_coefficients(i) for i in range (m)]
         A = tuple(A)
         A = matrix(QQ, A)
-        
-        if all(i.is_integer() for i in b):
-            raise ValueError("The solution are all integer. There is no way to add a cut.")
-        if basic_variable != None:
-            basic_variable = variable(self.coordinate_ring(), basic_variable)
-            choose_variable = basic_variable
-            variable_index = list(B).index(choose_variable)
-        else:
-            variable_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
-            variable_index = variable_list.index(min(variable_list))
-            choose_variable = B[variable_index]
-        if new_slack_variable != None:
-            if not isinstance(new_slack_variable, str):
-                raise TypeError("entering must be a string of a slack variable name")
-            else:
-                add_slack_variable = new_slack_variable
-        else:
-            cut_index = m + n + 1
-            add_slack_variable = SR("x" + str(cut_index))
-
-        self.add_row(A, B, N, b, variable_index, add_slack_variable)
-
-    def add_row(self, A, B, N, b, variable_index, add_slack_variable):
-        r"""
-
-        Update a dictionary with an additional row based on a given dictionary, the index of
-        the basic variable that provides the source row for the cut and a variable name 
-        of a new slack variable
-
-        INPUT:
-
-        - ``A`` -- a matrix of constraint coefficients
-        - ``B`` -- a vector of basic variables
-        - ``N`` -- a vector of nonbasic variables
-        - ``b`` -- a vector of constant terms
-        - ``variable_index`` -- a number indicates the index of the basic variable 
-        that provides the source row for the cut 
-        -- ``add_slack_variable`` -- a string indicates the name of a new slack variable
-
-        OUTPUT:
-
-        - a dictionary with an added cut
-
-        EXAMPLES::
-
-            sage: A = ([-1, 1], [8, 2])
-            sage: b = (2, 17)
-            sage: c = (5.5, 2.1)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.final_dictionary()
-            sage: A, b, c, v, B, N, z = D._AbcvBNz
-            sage: variable_index = 1
-            sage: add_slack_variable = "x5"
-            sage: D.add_row(A, B, N, b, variable_index, add_slack_variable)
-            sage: D.basic_variables()
-            (x2, x1, x5)
-            sage: D.leave(5)
-            sage: D.leaving_coefficients()
-            (-1/10, -4/5)
-            sage: D.constant_terms()
-            (3.30000000000000, 1.30000000000000, -0.300000000000000)
-
-        """
-        n = len(N)
-        m = len(B)
-
-        cut_nonbasic_coefficients = [ A[variable_index][i].floor() - 
-                                      A[variable_index][i] for i in range (n)]
-        cut_constant = b[variable_index].floor() - b[variable_index]
 
         A = A.transpose()
-        v = vector(QQ, n, cut_nonbasic_coefficients)
+        v = vector(QQ, n, nonbasic_coefficients)
         A = A.augment(v)
         A = A.transpose()
 
         l = list(b)
-        l.append(cut_constant)
+        l.append(constant)
         b = vector(l)
 
+        
         l = list(B)
-        l.append(add_slack_variable)
+        l.append(slack_variable)
         B = tuple(l)
 
         #Construct a larger ring for variable
         R = B[0].parent()
         G = list(R.gens())
-        G.append(add_slack_variable)
+        G.append(slack_variable)
         R = PolynomialRing(QQ, G, order="neglex")
         #Update B and N to the larger ring
         B2 = vector([ R(x) for x in B])
@@ -3167,7 +3187,6 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[1] = b
         self._AbcvBNz[4] = B2
         self._AbcvBNz[5] = N2
-
 
     def ELLUL(self, entering, leaving):
         r"""
@@ -3980,6 +3999,49 @@ class LPRevisedDictionary(LPAbstractDictionary):
         lines.append(r"\end{array}")
         bottom = "\n".join(lines)
         return _assemble_arrayl([top, "", bottom], 1.5)
+    
+    def add_row(self, nonbasic_coefficients, constant, slack_variable):
+        r"""
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        an indicated basic variable that provides the source row and a variable name 
+        for a new slack variable
+
+        INPUT:
+
+        -``nonbasic_coefficients``-- a list of the coefficients for the new row
+        -``constant``-- a number of the constant term for the new row
+        -``slack_variable``-- a string of the name for the new slack variable
+
+        OUTPUT:
+
+        - a dictionary with an added row
+
+        """
+
+        basic_variables = self.basic_variables()
+        constant_terms = self.constant_terms()
+
+        l = list(constant_terms)
+        l.append(constant)
+        constant_terms = vector(l)
+        
+        l = list(basic_variables)
+        l.append(slack_variable)
+        basic_variables = tuple(l)
+
+        #Construct a larger ring for variable
+        R = basic_variables[0].parent()
+        G = list(R.gens())
+        G.append(slack_variable)
+        R = PolynomialRing(QQ, G, order="neglex")
+        self.coordinate_ring = R
+
+        #Update B and N to the larger ring
+        new_basic_variables = vector([ R(x) for x in basic_variables])
+        new_nonbasic_variable = vector([ R(x) for x in nonbasic_variables])
+
+        self._x_B = new_basic_variables
+      
 
     def A(self, v):
         r"""
@@ -4042,10 +4104,6 @@ class LPRevisedDictionary(LPAbstractDictionary):
         """
         return column_matrix(self.problem().base_ring(),
                              [self.A(x) for x in self.x_N()])
-    # def add_row(self):
-    #     ###Transform to original variables
-    #     ###Add to the problem
-    #     ###Update the revised dictionary's basis
 
     def B(self):
         r"""
@@ -4488,13 +4546,9 @@ class LPRevisedDictionary(LPAbstractDictionary):
         """
         return self._problem
 
-    def transform_cut_dictionary(self):
-        #Under construction
-        A, b, c, v, B, N, z = self._AbcvBNz
-        
-        # DSF = D.standard_form()
-        # print(D)
-        # DSF_final_dictionary = DSF.final_dictionary()
+    def row_coefficients(self, row_index):
+        B = self.B()
+        return B[row_index]
 
     def update(self):
         r"""

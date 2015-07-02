@@ -4018,30 +4018,86 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         """
 
-        basic_variables = self.basic_variables()
-        constant_terms = self.constant_terms()
+        basic = self.basic_variables()
+        # constant_terms = self.constant_terms()
+        nonbasic = self.nonbasic_variables()
 
-        l = list(constant_terms)
-        l.append(constant)
-        constant_terms = vector(l)
+        # l = list(constant_terms)
+        # l.append(constant)
+        # constant_terms = vector(l)
         
-        l = list(basic_variables)
+        l = list(basic)
         l.append(slack_variable)
         basic_variables = tuple(l)
 
         #Construct a larger ring for variable
-        R = basic_variables[0].parent()
+        R = basic[0].parent()
         G = list(R.gens())
         G.append(slack_variable)
         R = PolynomialRing(QQ, G, order="neglex")
-        self.coordinate_ring = R
+        
 
         #Update B and N to the larger ring
-        new_basic_variables = vector([ R(x) for x in basic_variables])
-        new_nonbasic_variable = vector([ R(x) for x in nonbasic_variables])
+        new_basic = vector([ R(x) for x in basic])
+        new_nonbasic = vector([ R(x) for x in nonbasic])
+        self.coordinate_ring = R
+        #self._x_B = new_basic
 
+        problem = self._problem
+        A = problem.Abcx()[0]
+        b = list(problem.Abcx()[1])
+        c = problem.Abcx()[2]
+        original = list(problem.Abcx()[3])
+        slack = list(problem.slack_variable())
+        all_variable = original + slack
+
+        # N_cross_O = list(set(list(nonbasic)) & set(original))
+        # N_cross_S = list(set(list(nonbasic)) & set(slack))
+        # print "original", original, "slack",  slack
+        # print "N_O", N_cross_O, "N_S", N_cross_S
+
+        #update nonbasic_coefficients with the right orders of original and slack variables
+        dic = {}
+        new_nonbasic_coefficients = []
+        for i in range (len(nonbasic_coefficients)):
+            dic[nonbasic[i]] = nonbasic_coefficients[i]
+        for j in range (len(all_variable)):
+            if all_variable[j] in nonbasic:
+                new_nonbasic_coefficients.append(dic[all_variable[j]])
+
+        new_row= []
+        ith_term = 0
+        ith_row = 0
+        for n in range (len(all_variable)):
+            if all_variable[n] in original:
+                new_row.append(new_constant_terms[ith_term])
+            elif all_variable[n] in slack:
+                for j_column in range (len(original)):
+                    new_row.append(-new_constant_terms[ith_term] * A[ith_row][j_colomn]))
+                ith_row +=1
+            ith_term += 1
+        
+        new_b = -constant
+        i = 0
+        for j in range (len(slack)):
+            if slack[j] in nonbasic:
+                new_b += new_constant_terms[i] * b[i]
+                i += 1
+
+
+        A = A.transpose()
+        v = vector(QQ, n, new_row)
+        A = A.augment(v)
+        A = A.transpose()
+
+        l = list(b)
+        l.append(new_b)
+        b = vector(l)
+
+        new_problem = InteractiveLPProblemStandardForm(A, b, c)
+        self.problem = new_problem
         self._x_B = new_basic_variables
-      
+        self._B_inverse = self.B().inverse()
 
     def A(self, v):
         r"""

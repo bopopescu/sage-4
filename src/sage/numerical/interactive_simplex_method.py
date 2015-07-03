@@ -2309,6 +2309,7 @@ class LPAbstractDictionary(SageObject):
             (-1/10, -4/5)
             sage: D.constant_terms()
             (3.30000000000000, 1.30000000000000, -0.300000000000000)
+
             
         """
 
@@ -2341,6 +2342,7 @@ class LPAbstractDictionary(SageObject):
 
         cut_nonbasic_coefficients = [ A_ith_row[i].floor() - 
                                       A_ith_row[i] for i in range (n)]
+
         cut_constant = b[variable_index].floor() - b[variable_index]
         
         self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable)
@@ -2863,7 +2865,14 @@ class LPAbstractDictionary(SageObject):
         return [(b / a, x) for b, a, x in zip(self.constant_terms(),
                                               self.entering_coefficients(),
                                               self.basic_variables()) if a > 0]
+    def row_coefficients(self):
+        r"""
+        Return the coefficients of a given row of the matrix A
 
+        See add_row() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
+        raise NotImplementedError 
 
 class LPDictionary(LPAbstractDictionary):
     r"""
@@ -4014,17 +4023,25 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         OUTPUT:
 
-        - a dictionary with an added row
+        - a revised dictionary with an added row
 
+        TEST::
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_revised_dictionary()
+            sage: D.add_row([7, 11], 42, 'c')
+            sage: D.row_coefficients(2)
+            (7, 11)
+            sage: D.constant_terms()[2]
+            42
+            sage: D.basic_variables()[2]
+            c
         """
 
         basic = self.basic_variables()
-        # constant_terms = self.constant_terms()
         nonbasic = self.nonbasic_variables()
-
-        # l = list(constant_terms)
-        # l.append(constant)
-        # constant_terms = vector(l)
         
         l = list(basic)
         l.append(slack_variable)
@@ -4036,58 +4053,50 @@ class LPRevisedDictionary(LPAbstractDictionary):
         G.append(slack_variable)
         R = PolynomialRing(QQ, G, order="neglex")
         
-
         #Update B and N to the larger ring
-        new_basic = vector([ R(x) for x in basic])
+        new_basic = vector([ R(x) for x in basic_variables])
         new_nonbasic = vector([ R(x) for x in nonbasic])
-        self.coordinate_ring = R
-        #self._x_B = new_basic
 
         problem = self._problem
         A = problem.Abcx()[0]
-        b = list(problem.Abcx()[1])
+        b = problem.Abcx()[1]
         c = problem.Abcx()[2]
         original = list(problem.Abcx()[3])
-        slack = list(problem.slack_variable())
-        all_variable = original + slack
-
-        # N_cross_O = list(set(list(nonbasic)) & set(original))
-        # N_cross_S = list(set(list(nonbasic)) & set(slack))
-        # print "original", original, "slack",  slack
-        # print "N_O", N_cross_O, "N_S", N_cross_S
-
-        #update nonbasic_coefficients with the right orders of original and slack variables
+        slack = list(problem.slack_variables())
+        variables = original + slack
+        n = len(original)
+        m = len(slack)     
+          
+        #update nonbasic_coefficients with the right orders in original and slack variables
         dic = {}
-        new_nonbasic_coefficients = []
-        for i in range (len(nonbasic_coefficients)):
+        for i in range (len(nonbasic)):
             dic[nonbasic[i]] = nonbasic_coefficients[i]
-        for j in range (len(all_variable)):
-            if all_variable[j] in nonbasic:
-                new_nonbasic_coefficients.append(dic[all_variable[j]])
+        new_nonbasic_coefficients = [dic[variables[j]] for j in range (n+m) \
+                                        if variables[j] in nonbasic]
+        d = new_nonbasic_coefficients
 
-        new_row= []
-        ith_term = 0
-        ith_row = 0
-        for n in range (len(all_variable)):
-            if all_variable[n] in original:
-                new_row.append(new_constant_terms[ith_term])
-            elif all_variable[n] in slack:
-                for j_column in range (len(original)):
-                    new_row.append(-new_constant_terms[ith_term] * A[ith_row][j_colomn]))
-                ith_row +=1
-            ith_term += 1
-        
-        new_b = -constant
-        i = 0
-        for j in range (len(slack)):
-            if slack[j] in nonbasic:
-                new_b += new_constant_terms[i] * b[i]
-                i += 1
+        def standard_unit_vector(i, length):
+            v = vector(QQ, [0] * length)
+            v[i] = 1
+            return v
 
+        num_N_in_O = 0
+        num_N_in_S = 0
+        new_row = vector(QQ, [0] * n)
+        new_b = constant
+        N_order_in_O = [i for i in range (n) if original[i] in nonbasic]
+        N_order_in_S = [i for i in range (m) if slack[i] in nonbasic]
+        for n in range (len(nonbasic)):
+            if nonbasic[n] in original:
+                new_row += d[num_N_in_O] * standard_unit_vector(N_order_in_O[num_N_in_O], n)
+                num_N_in_O += 1
+            elif nonbasic[n] in slack:
+                new_row -= d[num_N_in_S] * A[N_order_in_S[num_N_in_S]]
+                new_b -= d[num_N_in_S] * b[N_order_in_S[num_N_in_S]]
+                num_N_in_S += 1
 
         A = A.transpose()
-        v = vector(QQ, n, new_row)
-        A = A.augment(v)
+        A = A.augment(new_row)
         A = A.transpose()
 
         l = list(b)
@@ -4095,9 +4104,10 @@ class LPRevisedDictionary(LPAbstractDictionary):
         b = vector(l)
 
         new_problem = InteractiveLPProblemStandardForm(A, b, c)
-        self.problem = new_problem
-        self._x_B = new_basic_variables
-        self._B_inverse = self.B().inverse()
+        self._problem = new_problem
+        self._x_B = new_basic
+        B = self.B()
+        self._B_inverse = B.inverse()
 
     def A(self, v):
         r"""
@@ -4603,8 +4613,11 @@ class LPRevisedDictionary(LPAbstractDictionary):
         return self._problem
 
     def row_coefficients(self, row_index):
-        B = self.B()
-        return B[row_index]
+        D = self.dictionary()
+        basic_variables = D.basic_variables()
+        leaving_variable = basic_variables[row_index]
+        D.leave(leaving_variable)
+        return D.leaving_coefficients()
 
     def update(self):
         r"""

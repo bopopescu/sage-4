@@ -2298,7 +2298,7 @@ class LPAbstractDictionary(SageObject):
 
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
-            sage: c = (5.5, 2.1)
+            sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.final_dictionary()
             sage: D.add_a_cut()
@@ -2308,7 +2308,7 @@ class LPAbstractDictionary(SageObject):
             sage: D.leaving_coefficients()
             (-1/10, -4/5)
             sage: D.constant_terms()
-            (3.30000000000000, 1.30000000000000, -0.300000000000000)
+            (33/10, 13/10, -3/10)
 
             
         """
@@ -2338,7 +2338,7 @@ class LPAbstractDictionary(SageObject):
             cut_index = m + n + 1
             add_slack_variable = SR("x" + str(cut_index))
 
-        A_ith_row = self.row_coefficients(variable_index)
+        A_ith_row = self.row_coefficients(choose_variable)
 
         cut_nonbasic_coefficients = [ A_ith_row[i].floor() - 
                                       A_ith_row[i] for i in range (n)]
@@ -2677,6 +2677,44 @@ class LPAbstractDictionary(SageObject):
         if v not in self.basic_variables():
             raise ValueError("leaving variable must be basic")
         self._leaving = v
+
+    def leaving_coefficients(self):
+        r"""
+        Return coefficients of a leaving variable
+
+        INPUT:
+
+        - ``v`` -- a basic variable of ``self``, can be given as a string, an
+          actual variable, or an integer interpreted as the index of a variable
+
+        OUTPUT:
+
+        - a vector of coefficients of a leaving variable
+
+        EXAMPLES::
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.dictionary(2, 3)
+            sage: D.leave(3)
+            sage: D.leaving_coefficients()
+            (-2, -1)
+
+        The same works for revised dictionaries as well::
+        
+            sage: D = P.revised_dictionary(2, 3)
+            sage: D.leave(3)
+            sage: D.leaving_coefficients()
+            (-2, -1)
+        """
+        if self._leaving is None:
+            raise ValueError("leaving variable must be chosen to compute "
+                             "its coefficients")
+        return self.row_coefficients(self._leaving)
+
+        
 
     def possible_dual_simplex_method_steps(self):
         r"""
@@ -3137,26 +3175,22 @@ class LPDictionary(LPAbstractDictionary):
 
         OUTPUT:
 
-        - a dictionary with an added row
+        - none, but the dictionary will be updated with an added row
 
         EXAMPLES::
 
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
-            sage: c = (5.5, 2.1)
+            sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.final_dictionary()
-            sage: cut_nonbasic_coefficients = [-1/10, -4/5]
-            sage: cut_constant = -3/10
-            sage: add_slack_variable = "x5"
-            sage: D.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable)
-            sage: D.basic_variables()
-            (x2, x1, x5)
-            sage: D.leave(5)
-            sage: D.leaving_coefficients()
-            (-1/10, -4/5)
-            sage: D.constant_terms()
-            (3.30000000000000, 1.30000000000000, -0.300000000000000)
+            sage: D.add_row([7, 11], 42, 'c')
+            sage: D.row_coefficients("c")
+            (7, 11)
+            sage: D.constant_terms()[2]
+            42
+            sage: D.basic_variables()[2]
+            c
 
         """
 
@@ -3165,29 +3199,20 @@ class LPDictionary(LPAbstractDictionary):
         b = self.constant_terms()
         n = len(N)
         m = len(B)
-        A = [self.row_coefficients(i) for i in range (m)]
-        A = tuple(A)
-        A = matrix(QQ, A)
+        A = tuple([self.row_coefficients(B[i]) for i in range (m)])
+        A = matrix(self.base_ring(), A)
 
-        A = A.transpose()
-        v = vector(QQ, n, nonbasic_coefficients)
-        A = A.augment(v)
-        A = A.transpose()
+        v = vector(self.base_ring(), n, nonbasic_coefficients)
+        A = A.stack(v)
 
-        l = list(b)
-        l.append(constant)
-        b = vector(l)
-
-        
-        l = list(B)
-        l.append(slack_variable)
-        B = tuple(l)
+        b = vector(tuple(b) + (constant,))
+        B = tuple(B) + (slack_variable,)       
 
         #Construct a larger ring for variable
         R = B[0].parent()
         G = list(R.gens())
         G.append(slack_variable)
-        R = PolynomialRing(QQ, G, order="neglex")
+        R = PolynomialRing(self.base_ring(), G, order="neglex")
         #Update B and N to the larger ring
         B2 = vector([ R(x) for x in B])
         N2 = vector([ R(x) for x in N])
@@ -3338,31 +3363,6 @@ class LPDictionary(LPAbstractDictionary):
         k = tuple(self.nonbasic_variables()).index(self._entering)
         return self._AbcvBNz[0].column(k)
 
-    def leaving_coefficients(self):
-        r"""
-        Return coefficients of the leaving variable.
-
-        OUTPUT:
-
-        - a vector
-
-        EXAMPLES::
-
-            sage: A = ([1, 1], [3, 1])
-            sage: b = (1000, 1500)
-            sage: c = (10, 5)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.dictionary(2, 3)
-            sage: D.leave(3)
-            sage: D.leaving_coefficients()
-            (-2, -1)
-        """
-        if self._leaving is None:
-            raise ValueError("leaving variable must be chosen to compute "
-                             "its coefficients")
-        i = tuple(self.basic_variables()).index(self._leaving)
-        return self._AbcvBNz[0][i]
-
     def nonbasic_variables(self):
         r"""
         Return non-basic variables of ``self``.
@@ -3440,23 +3440,44 @@ class LPDictionary(LPAbstractDictionary):
         """
         print self._objective_variable  
 
-    def row_coefficients(self, row_index):
+    def row_coefficients(self, v):
         r"""
-        Return the coefficients of a given row of the matrix A
+        Return the coefficients of a basic variable
 
         INPUT:
 
-        - a integer giving the row index of the matrix A
+        - ``v`` -- a basic variable of ``self``, can be given as a string, an
+          actual variable, or an integer interpreted as the index of a variable
 
         OUTPUT:
 
-        - a vector of coefficients for a given row of the matrix A
+        - a vector of coefficients of a basic variable
 
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: D.row_coefficients("x1")
+            (1/10, -1/5)
+
+        We can also use indices of variables::
+
+            sage: D.row_coefficients(1)
+            (1/10, -1/5)
+
+        Or variable names without quotes after injecting them::
+
+            sage: P.inject_variables()
+            Defining x0, x1, x2, x3, x4
+            sage: D.row_coefficients(x1)
+            (1/10, -1/5)
         """
-        basic_variables = self.basic_variables()
-        leaving_variable = basic_variables[row_index]
-        self.leave(leaving_variable)
-        return self.leaving_coefficients()
+        self.leave(v)
+        i = tuple(self.basic_variables()).index(self._leaving)
+        return self._AbcvBNz[0][i]
 
     def run_dual_simplex_method(self):
         r"""
@@ -4023,7 +4044,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         OUTPUT:
 
-        - a revised dictionary with an added row
+        - none, but the revised dictionary will be updated with an added row
 
         TEST::
             sage: A = ([-1, 1], [8, 2])
@@ -4032,7 +4053,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.final_revised_dictionary()
             sage: D.add_row([7, 11], 42, 'c')
-            sage: D.row_coefficients(2)
+            sage: D.row_coefficients("c")
             (7, 11)
             sage: D.constant_terms()[2]
             42
@@ -4043,18 +4064,16 @@ class LPRevisedDictionary(LPAbstractDictionary):
         basic = self.basic_variables()
         nonbasic = self.nonbasic_variables()
         
-        l = list(basic)
-        l.append(slack_variable)
-        basic_variables = tuple(l)
+        new_basic_variables = tuple(basic) + (slack_variable,) 
 
         #Construct a larger ring for variable
         R = basic[0].parent()
         G = list(R.gens())
         G.append(slack_variable)
-        R = PolynomialRing(QQ, G, order="neglex")
+        R = PolynomialRing(self.base_ring(), G, order="neglex")
         
         #Update B and N to the larger ring
-        new_basic = vector([ R(x) for x in basic_variables])
+        new_basic = vector([ R(x) for x in new_basic_variables])
         new_nonbasic = vector([ R(x) for x in nonbasic])
 
         problem = self._problem
@@ -4095,13 +4114,8 @@ class LPRevisedDictionary(LPAbstractDictionary):
                 new_b -= d[num_N_in_S] * b[N_order_in_S[num_N_in_S]]
                 num_N_in_S += 1
 
-        A = A.transpose()
-        A = A.augment(new_row)
-        A = A.transpose()
-
-        l = list(b)
-        l.append(new_b)
-        b = vector(l)
+        A = A.stack(new_row)
+        b = vector(tuple(b) + (new_b,))
 
         new_problem = InteractiveLPProblemStandardForm(A, b, c)
         self._problem = new_problem
@@ -4473,31 +4487,6 @@ class LPRevisedDictionary(LPAbstractDictionary):
                              "its coefficients")
         return self.B_inverse() * self.A(self._entering)
 
-    def leaving_coefficients(self):
-        r"""
-        Return coefficients of the leaving variable.
-
-        OUTPUT:
-
-        - a vector
-
-        EXAMPLES::
-
-            sage: A = ([1, 1], [3, 1])
-            sage: b = (1000, 1500)
-            sage: c = (10, 5)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.revised_dictionary(2, 3)
-            sage: D.leave(3)
-            sage: D.leaving_coefficients()
-            (-2, -1)
-        """
-        if self._leaving is None:
-            raise ValueError("leaving variable must be chosen to compute "
-                             "its coefficients")
-        i = self.basic_variables().list().index(self._leaving)
-        return self.B_inverse()[i] * self.A_N()
-
     def nonbasic_indices(self):
         r"""
         Return the non-basic indices of ``self``.
@@ -4612,12 +4601,45 @@ class LPRevisedDictionary(LPAbstractDictionary):
         """
         return self._problem
 
-    def row_coefficients(self, row_index):
-        D = self.dictionary()
-        basic_variables = D.basic_variables()
-        leaving_variable = basic_variables[row_index]
-        D.leave(leaving_variable)
-        return D.leaving_coefficients()
+    def row_coefficients(self, v):
+        r"""
+        Return the coefficients of a basic variable
+
+        INPUT:
+
+        - ``v`` -- a basic variable of ``self``, can be given as a string, an
+          actual variable, or an integer interpreted as the index of a variable
+
+        OUTPUT:
+
+        - a vector of coefficients of a basic variable
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.revised_dictionary()
+            sage: D.row_coefficients("x3")
+            (-1, 1)
+
+        We can also use indices of variables::
+
+            sage: D.row_coefficients(3)
+            (-1, 1)
+
+        Or variable names without quotes after injecting them::
+
+            sage: P.inject_variables()
+            Defining x0, x1, x2, x3, x4
+            sage: D.row_coefficients(3)
+            (-1, 1)
+        """
+        self.leave(v)
+        i = self.basic_variables().list().index(self._leaving)
+        return self.B_inverse()[i] * self.A_N()
+        
 
     def update(self):
         r"""

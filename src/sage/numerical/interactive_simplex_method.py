@@ -4072,9 +4072,8 @@ class LPRevisedDictionary(LPAbstractDictionary):
         G.append(slack_variable)
         R = PolynomialRing(self.base_ring(), G, order="neglex")
         
-        #Update B and N to the larger ring
+        #Update B to the larger ring
         new_basic = vector([ R(x) for x in new_basic_variables])
-        new_nonbasic = vector([ R(x) for x in nonbasic])
 
         problem = self._problem
         A = problem.Abcx()[0]
@@ -4085,34 +4084,26 @@ class LPRevisedDictionary(LPAbstractDictionary):
         variables = original + slack
         n = len(original)
         m = len(slack)     
-          
+        
+        set_nonbasic = set(nonbasic)
+
         #update nonbasic_coefficients with the right orders in original and slack variables
-        dic = {}
-        for i in range (len(nonbasic)):
-            dic[nonbasic[i]] = nonbasic_coefficients[i]
-        new_nonbasic_coefficients = [dic[variables[j]] for j in range (n+m) \
-                                        if variables[j] in nonbasic]
-        d = new_nonbasic_coefficients
-
-        def standard_unit_vector(i, length):
-            v = vector(QQ, [0] * length)
-            v[i] = 1
-            return v
-
-        num_N_in_O = 0
-        num_N_in_S = 0
+        dic = {item: coef for item, coef in zip(nonbasic, nonbasic_coefficients)}
+        new_nonbasic_coefficients = [dic[item] for item in variables if item in set_nonbasic]
         new_row = vector(QQ, [0] * n)
         new_b = constant
-        N_order_in_O = [i for i in range (n) if original[i] in nonbasic]
-        N_order_in_S = [i for i in range (m) if slack[i] in nonbasic]
-        for n in range (len(nonbasic)):
-            if nonbasic[n] in original:
-                new_row += d[num_N_in_O] * standard_unit_vector(N_order_in_O[num_N_in_O], n)
-                num_N_in_O += 1
-            elif nonbasic[n] in slack:
-                new_row -= d[num_N_in_S] * A[N_order_in_S[num_N_in_S]]
-                new_b -= d[num_N_in_S] * b[N_order_in_S[num_N_in_S]]
-                num_N_in_S += 1
+        N_order_in_O = [ 1 if original[i] in set_nonbasic else 0 for i in range (n)]
+        N_order_in_S = [ 1 if slack[i] in set_nonbasic else 0 for i in range (m)]
+
+        index = 0
+        for n in range (n+m):
+            if index < n and N_order_in_O[index] == 1 :
+                new_row += new_nonbasic_coefficients[index] * standard_unit_vector(index, n)
+            elif index < m and N_order_in_S[index] == 1 :
+                new_row -= new_nonbasic_coefficients[index] * A[index]
+                new_b -= new_nonbasic_coefficients[index] * b[index]
+            index += 1  
+       
 
         A = A.stack(new_row)
         b = vector(tuple(b) + (new_b,))
@@ -4633,7 +4624,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
             sage: P.inject_variables()
             Defining x0, x1, x2, x3, x4
-            sage: D.row_coefficients(3)
+            sage: D.row_coefficients(x3)
             (-1, 1)
         """
         self.leave(v)

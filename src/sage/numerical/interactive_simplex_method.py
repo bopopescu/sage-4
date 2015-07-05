@@ -4047,17 +4047,41 @@ class LPRevisedDictionary(LPAbstractDictionary):
         - none, but the revised dictionary will be updated with an added row
 
         TEST::
-            sage: A = ([-1, 1], [8, 2])
-            sage: b = (2, 17)
-            sage: c = (55/10, 21/10)
+
+        Tested with a variety of different bases
+        
+            sage: A = ([-1, 1111, 3, 17], [8, 222, 7, 6], [3, 7, 17, 5], [9, 5, 7, 3])
+            sage: b = (2, 17, 11, 27)
+            sage: c = (5/133, 1/10, 1/18, 47/3)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.Abcx()[3]
+            (x1, x2, x3, x4)
             sage: D = P.final_revised_dictionary()
-            sage: D.add_row([7, 11], 42, 'c')
+            sage: D.nonbasic_variables()
+            (x2, x3, x5, x6)
+            sage: D.add_row([7, 11, 13, 9], 42, 'c')
             sage: D.row_coefficients("c")
-            (7, 11)
-            sage: D.constant_terms()[2]
+            (7, 11, 13, 9)
+            sage: D.constant_terms()[4]
             42
-            sage: D.basic_variables()[2]
+            sage: D.basic_variables()[4]
+            c
+            sage: A = ([-9, 7, 48, 31, 23], [5, 2, 9, 13, 98], \
+            ....:   [14, 15, 97, 49, 1], [9, 5, 7, 3, 17], [119, 7, 121, 5, 111])
+            sage: b = (33, 27, 1, 272, 61)
+            sage: c = (51/133, 1/100, 149/18, 47/37, 13/17)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.Abcx()[3]
+            (x1, x2, x3, x4, x5)
+            sage: D = P.final_revised_dictionary()
+            sage: D.nonbasic_variables()
+            (x1, x2, x4, x7, x8)
+            sage: D.add_row([5 ,7, 11, 13, 9], 99, 'c')
+            sage: D.row_coefficients("c")
+            (5, 7, 11, 13, 9)
+            sage: D.constant_terms()[5]
+            99
+            sage: D.basic_variables()[5]
             c
         """
 
@@ -4084,26 +4108,32 @@ class LPRevisedDictionary(LPAbstractDictionary):
         variables = original + slack
         n = len(original)
         m = len(slack)     
-        
         set_nonbasic = set(nonbasic)
 
         #update nonbasic_coefficients with the right orders in original and slack variables
         dic = {item: coef for item, coef in zip(nonbasic, nonbasic_coefficients)}
-        new_nonbasic_coefficients = [dic[item] for item in variables if item in set_nonbasic]
+        new_nonbasic_coef= [dic[item] for item in variables if item in set_nonbasic]
+        d = new_nonbasic_coef   #rename new_nonbasic_coef to d
         new_row = vector(QQ, [0] * n)
         new_b = constant
-        N_order_in_O = [ 1 if original[i] in set_nonbasic else 0 for i in range (n)]
-        N_order_in_S = [ 1 if slack[i] in set_nonbasic else 0 for i in range (m)]
+        N_order_in_O = [ True if original[i] in set_nonbasic else False for i in range (n)]
+        N_order_in_S = [ True if slack[i] in set_nonbasic else False for i in range (m)]
 
-        index = 0
-        for n in range (n+m):
-            if index < n and N_order_in_O[index] == 1 :
-                new_row += new_nonbasic_coefficients[index] * standard_unit_vector(index, n)
-            elif index < m and N_order_in_S[index] == 1 :
-                new_row -= new_nonbasic_coefficients[index] * A[index]
-                new_b -= new_nonbasic_coefficients[index] * b[index]
-            index += 1  
-       
+        def standard_unit_vector(index, length):
+            v = vector(QQ, [0] * length)
+            v[index] = 1
+            return v
+
+        d_index = 0
+        for index in range (n):
+            if N_order_in_O[index]:
+                new_row += d[d_index] * standard_unit_vector(index, n)
+                d_index += 1
+        for index in range (m):
+            if N_order_in_S[index]:
+                new_row -= d[d_index] * A[index]
+                new_b -= d[d_index] * b[index]
+                d_index += 1
 
         A = A.stack(new_row)
         b = vector(tuple(b) + (new_b,))

@@ -4116,8 +4116,6 @@ class LPRevisedDictionary(LPAbstractDictionary):
         d = new_nonbasic_coef   #rename new_nonbasic_coef to d
         new_row = vector(QQ, [0] * n)
         new_b = constant
-        N_order_in_O = [ True if original[i] in set_nonbasic else False for i in range (n)]
-        N_order_in_S = [ True if slack[i] in set_nonbasic else False for i in range (m)]
 
         def standard_unit_vector(index, length):
             v = vector(QQ, [0] * length)
@@ -4125,15 +4123,20 @@ class LPRevisedDictionary(LPAbstractDictionary):
             return v
 
         d_index = 0
-        for index in range (n):
-            if N_order_in_O[index]:
-                new_row += d[d_index] * standard_unit_vector(index, n)
+        original_index = 0
+        slack_index = 0
+        for item in original:
+            if item in set_nonbasic:
+                new_row += d[d_index] * standard_unit_vector(original_index, n)
+                d_index +=1
+            original_index += 1
+        for item in slack: 
+            if item in set_nonbasic:    
+                new_row -= d[d_index] * A[slack_index]
+                new_b -= d[d_index] * b[slack_index]
                 d_index += 1
-        for index in range (m):
-            if N_order_in_S[index]:
-                new_row -= d[d_index] * A[index]
-                new_b -= d[d_index] * b[index]
-                d_index += 1
+            slack_index += 1
+
 
         A = A.stack(new_row)
         b = vector(tuple(b) + (new_b,))

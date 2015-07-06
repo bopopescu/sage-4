@@ -484,7 +484,7 @@ class InteractiveLPProblem(SageObject):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
-    - ``integer_variables`` -- (default: None) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicates
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -529,7 +529,7 @@ class InteractiveLPProblem(SageObject):
                  constraint_type="<=", variable_type="", 
                  problem_type="max", prefix="x", base_ring=None, 
                  style=None, objective_variable=None,
-                 integer_variables=None):
+                 integer_variables=False):
         r"""
         See :class:`InteractiveLPProblem` for documentation.
 
@@ -602,9 +602,8 @@ class InteractiveLPProblem(SageObject):
         self._problem_type = problem_type
 
         self._prefix = prefix
-        if integer_variables == None:
-            self._integer_variables = None
-        elif integer_variables == False:
+        
+        if integer_variables == False:
             self._integer_variables = set([])
         elif integer_variables == True:
             self._integer_variables = set(x)
@@ -1493,7 +1492,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
-    - ``integer_variables`` -- (default: None) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicates
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -1520,7 +1519,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
     def __init__(self, A, b, c, x="x", problem_type="max",
                  slack_variables=None, auxiliary_variable=None,
                  base_ring=None, style=None, objective_variable=None,
-                 integer_variables=None):
+                 integer_variables=False):
         r"""
         See :class:`StandardFormLPP` for documentation.
 
@@ -1589,9 +1588,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         else:
             self._objective_variable = objective_variable
 
-        if integer_variables == None:
-            self._integer_variables = None
-        elif integer_variables == False:
+        if integer_variables == False:
             self._integer_variables = set([])
         elif integer_variables == True:
             self._integer_variables = set(self.Abcx()[3])
@@ -3012,7 +3009,7 @@ class LPDictionary(LPAbstractDictionary):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
-    - ``integer_variables`` -- (default: None) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicates
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -3054,7 +3051,7 @@ class LPDictionary(LPAbstractDictionary):
     def __init__(self, A, b, c, objective_value,
                  basic_variables, nonbasic_variables, 
                  objective_variable=None, 
-                 style=None, integer_variables=None):
+                 style=None, integer_variables=False):
         r"""
         See :class:`LPDictionary` for documentation.
 
@@ -3783,7 +3780,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
     - ``objective_variable`` -- (default: depends on ``style``) 
       a string giving the objective variable name. 
 
-    - ``integer_variables`` -- (default: None) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicates
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -3895,7 +3892,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     def __init__(self, problem, basic_variables, style=None, 
                     objective_variable=None,
-                    integer_variables=None):
+                    integer_variables=False):
         r"""
         See :class:`LPRevisedDictionary` for documentation.
 

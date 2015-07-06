@@ -484,6 +484,10 @@ class InteractiveLPProblem(SageObject):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
+    - ``integer_variables`` -- (default: None) either a boolean value indicates
+      if all the problem variables are integer or not, or a set of strings giving 
+      some problem variables' names, where those problem variables are integer.
+
     EXAMPLES:
 
     We will construct the following problem:
@@ -524,7 +528,8 @@ class InteractiveLPProblem(SageObject):
     def __init__(self, A, b, c, x="x",
                  constraint_type="<=", variable_type="", 
                  problem_type="max", prefix="x", base_ring=None, 
-                 style=None, objective_variable=None):
+                 style=None, objective_variable=None,
+                 integer_variables=None):
         r"""
         See :class:`InteractiveLPProblem` for documentation.
 
@@ -597,6 +602,19 @@ class InteractiveLPProblem(SageObject):
         self._problem_type = problem_type
 
         self._prefix = prefix
+        if integer_variables == None:
+            self._integer_variables = None
+        elif integer_variables == False:
+            self._integer_variables = set([])
+        elif integer_variables == True:
+            self._integer_variables = set(x)
+        else:
+            self._integer_variables = set([])
+            for v in integer_variables:
+                if variable(R, v) not in set(x):
+                    raise ValueError("every integer variable must be a problem variable")
+                else:
+                    self._integer_variables.add(variable(R, v))
 
     def __eq__(self, other):
         r"""
@@ -958,7 +976,8 @@ class InteractiveLPProblem(SageObject):
             problem_type = "-" + problem_type
         return InteractiveLPProblem(A, b, c, y,constraint_type, 
             variable_type, problem_type, style=style, 
-            objective_variable=dual_objective_variable)
+            objective_variable=dual_objective_variable,
+            integer_variables=self._integer_variables)
 
     @cached_method
     def feasible_set(self):
@@ -1388,7 +1407,8 @@ class InteractiveLPProblem(SageObject):
         if style == "vanderbei":
             prefix = "z"
         return InteractiveLPProblemStandardForm(A, b, c, x, problem_type, prefix,
-            prefix+ "0", style=style, objective_variable=objective_variable)
+            prefix+ "0", style=style, objective_variable=objective_variable,
+            integer_variables=self._integer_variables)
 
     # Aliases for the standard notation
     A = constraint_coefficients
@@ -1473,6 +1493,10 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
+    - ``integer_variables`` -- (default: None) either a boolean value indicates
+      if all the problem variables are integer or not, or a set of strings giving 
+      some problem variables' names, where those problem variables are integer.
+
     EXAMPLES::
 
         sage: A = ([1, 1], [3, 1])
@@ -1495,7 +1519,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
 
     def __init__(self, A, b, c, x="x", problem_type="max",
                  slack_variables=None, auxiliary_variable=None,
-                 base_ring=None, style=None, objective_variable=None):
+                 base_ring=None, style=None, objective_variable=None,
+                 integer_variables=None):
         r"""
         See :class:`StandardFormLPP` for documentation.
 
@@ -1554,15 +1579,29 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         self._Abcx = self._Abcx[:-1] + (x, )
         if objective_variable == None:
             if self._style == "vanderbei":
-                variable = "zeta"
+                v = "zeta"
                 if problem_type == 'max':
-                    self._objective_variable = variable
+                    self._objective_variable = v
                 else:
-                    self._objective_variable = "-"+variable
+                    self._objective_variable = "-"+v
             else:
                 self._objective_variable = "z"
         else:
             self._objective_variable = objective_variable
+
+        if integer_variables == None:
+            self._integer_variables = None
+        elif integer_variables == False:
+            self._integer_variables = set([])
+        elif integer_variables == True:
+            self._integer_variables = set(self.Abcx()[3])
+        else:
+            self._integer_variables = set([])
+            for v in integer_variables:
+                if variable(self.coordinate_ring(), v) not in set(self.Abcx()[3]):
+                    raise ValueError("every integer variable must be a problem variable")
+                else:
+                    self._integer_variables.add(variable(self.coordinate_ring(), v))
 
     def auxiliary_problem(self, objective_variable=None):
         r"""
@@ -1639,7 +1678,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
                                          slack_variables=X[-m:],
                                          auxiliary_variable=X[0],
                                          style=style,
-                                         objective_variable=aux_objective_variable)
+                                         objective_variable=aux_objective_variable,
+                                         integer_variables=self._integer_variables)
             
 
     def auxiliary_variable(self):
@@ -1805,7 +1845,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         N = map(self._R, N)
         return LPDictionary(A, b, c, v, B, N, 
             objective_variable=objective_variable, 
-            style=style)
+            style=style, integer_variables=self._integer_variables)
 
     def final_dictionary(self):
         r"""
@@ -1903,7 +1943,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         x = self._R.gens()
         m, n = self.m(), self.n()
         return LPDictionary(A, b, c, 0, x[-m:], x[-m-n:-m], 
-            objective_variable=objective_variable, style=style)
+            objective_variable=objective_variable, style=style,
+            integer_variables=self._integer_variables)
 
     def inject_variables(self, scope=None, verbose=True):
         r"""
@@ -1952,7 +1993,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
 
         """
         objective_variable = self._objective_variable
-        print objective_variable
+        return objective_variable
 
     def revised_dictionary(self, *x_B):
         r"""
@@ -2005,7 +2046,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             if bm < 0:
                 x_B[self.b().list().index(bm)] = self.auxiliary_variable()
         return LPRevisedDictionary(self, x_B, style=style, 
-                objective_variable=objective_variable)
+                objective_variable=objective_variable, 
+                integer_variables=self._integer_variables)
 
     def run_revised_simplex_method(self):
         r"""
@@ -2970,6 +3012,10 @@ class LPDictionary(LPAbstractDictionary):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
+    - ``integer_variables`` -- (default: None) either a boolean value indicates
+      if all the problem variables are integer or not, or a set of strings giving 
+      some problem variables' names, where those problem variables are integer.
+
     OUTPUT:
 
     - a :class:`dictionary for an LP problem <LPDictionary>`
@@ -3008,7 +3054,7 @@ class LPDictionary(LPAbstractDictionary):
     def __init__(self, A, b, c, objective_value,
                  basic_variables, nonbasic_variables, 
                  objective_variable=None, 
-                 style=None):
+                 style=None, integer_variables=None):
         r"""
         See :class:`LPDictionary` for documentation.
 
@@ -3039,6 +3085,7 @@ class LPDictionary(LPAbstractDictionary):
             raise ValueError("Style must be one of None (the default) or \
                 'vanderbei'")
         self._objective_variable = objective_variable
+        self._integer_variables = integer_variables
 
     def __eq__(self, other):
         r"""
@@ -3730,6 +3777,16 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     - ``basic_variables`` -- a list of basic variables or their indices
 
+    - ``style`` -- (default: see LPDictionary for reference) 
+      a string specifying the problem style.
+     
+    - ``objective_variable`` -- (default: depends on ``style``) 
+      a string giving the objective variable name. 
+
+    - ``integer_variables`` -- (default: None) either a boolean value indicates
+      if all the problem variables are integer or not, or a set of strings giving 
+      some problem variables' names, where those problem variables are integer.
+
     OUTPUT:
 
     - a :class:`revised dictionary for an LP problem <LPRevisedDictionary>`
@@ -3837,7 +3894,8 @@ class LPRevisedDictionary(LPAbstractDictionary):
     """
 
     def __init__(self, problem, basic_variables, style=None, 
-                    objective_variable=None):
+                    objective_variable=None,
+                    integer_variables=None):
         r"""
         See :class:`LPRevisedDictionary` for documentation.
 
@@ -3867,6 +3925,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
         self._problem = problem
         R =  problem.coordinate_ring()
         self._x_B = vector(R, [variable(R, v) for v in basic_variables])
+        self._integer_variables = integer_variables
 
     def __eq__(self, other):
         r"""

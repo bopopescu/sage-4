@@ -602,7 +602,15 @@ class InteractiveLPProblem(SageObject):
         self._problem_type = problem_type
 
         self._prefix = prefix
-        
+
+        slack_variables = ["{}{:d}".format("x", i)
+                               for i in range(n + 1, n + m + 1)]
+
+        names = map(str, x) + slack_variables
+        R1 = PolynomialRing(self.base_ring(), names, order="neglex")
+        slack_variables = R1.gens()[-m:]
+        self._R1=R1
+       
         if integer_variables == False:
             self._integer_variables = set([])
         elif integer_variables == True:
@@ -610,10 +618,16 @@ class InteractiveLPProblem(SageObject):
         else:
             self._integer_variables = set([])
             for v in integer_variables:
-                if variable(R, v) not in set(x):
+                var = variable(R1, v)
+                if var not in set(x) and var not in set(slack_variables):
                     raise ValueError("every integer variable must be a problem variable")
                 else:
-                    self._integer_variables.add(variable(R, v))
+                    self._integer_variables.add(var)
+        if not self._integer_variables.intersection(set(slack_variables)): 
+            if integer_variables:
+                for i in range (m):
+                    if b[i].is_integer() and (coef.is_integer() for coef in A[i]):
+                        self._integer_variables.add(variable(R1, slack_variables[i]))
 
     def __eq__(self, other):
         r"""
@@ -1595,10 +1609,22 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         else:
             self._integer_variables = set([])
             for v in integer_variables:
-                if variable(self.coordinate_ring(), v) not in set(self.Abcx()[3]):
+                var = variable(self.coordinate_ring(), v)
+                if var not in set(self.Abcx()[3]) and var not in set(self.slack_variables()):
                     raise ValueError("every integer variable must be a problem variable")
                 else:
-                    self._integer_variables.add(variable(self.coordinate_ring(), v))
+                    self._integer_variables.add(var)
+            #if there is no assigned integer slack variables by the user
+            # use sufficient conditions to assign slack variables to be integer        
+        if not self._integer_variables.intersection(set(self.slack_variables())): 
+            if integer_variables:
+                for i in range (m):
+                    if b[i].is_integer() and (coef.is_integer() for coef in A[i]):
+                        self._integer_variables.add(variable(self.coordinate_ring(), 
+                                                                self.slack_variables()[i]))
+
+
+
 
     def auxiliary_problem(self, objective_variable=None):
         r"""
@@ -1990,7 +2016,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
 
         """
         objective_variable = self._objective_variable
-        return objective_variable
+        print objective_variable
 
     def revised_dictionary(self, *x_B):
         r"""
@@ -2334,7 +2360,6 @@ class LPAbstractDictionary(SageObject):
         fractional basic variable
 
         EXAMPLES::
-
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
@@ -2348,7 +2373,6 @@ class LPAbstractDictionary(SageObject):
             (-1/10, -4/5)
             sage: D.constant_terms()
             (33/10, 13/10, -3/10)
-
             
         """
 
@@ -3542,7 +3566,7 @@ class LPDictionary(LPAbstractDictionary):
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (4/7, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
             sage: D.add_a_cut()
             sage: print(D.run_dual_simplex_method()) # not tested
@@ -3692,7 +3716,8 @@ class LPDictionary(LPAbstractDictionary):
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, 
+            ....: integer_variables=True)
             sage: D = P.final_dictionary()
             sage: number_of_cut = D.run_cutting_plane_algorithm()
             sage: number_of_cut
@@ -3700,7 +3725,8 @@ class LPDictionary(LPAbstractDictionary):
             sage: A = ([-8, 1], [8, 1])
             sage: b = (0, 8)
             sage: c = (-1/27, 1/31)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c,
+            ....: integer_variables=True)
             sage: D = P.final_dictionary()
             sage: number_of_cut = D.run_cutting_plane_algorithm()
             sage: number_of_cut

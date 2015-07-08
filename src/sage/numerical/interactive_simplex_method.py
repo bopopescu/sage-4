@@ -928,18 +928,18 @@ class InteractiveLPProblem(SageObject):
             sage: DP = DP.standard_form()
             sage: DPSF_initial = DP.initial_dictionary()
             sage: DPSF_initial.objective_variable()
-            z
+            'z'
             sage: P = InteractiveLPProblem(A, b, c, ["C", "B"], style="vanderbei")
             sage: DP = P.dual()
             sage: DP = DP.standard_form()
             sage: DPSF_initial = DP.initial_dictionary()
             sage: DPSF_initial.objective_variable()
-            xi
+            'xi'
             sage: DP = P.dual(objective_variable="dual")
             sage: DP = DP.standard_form()
             sage: DPSF_initial = DP.initial_dictionary()
             sage: DPSF_initial.objective_variable()
-            dual           
+            'dual'           
 
         """
         A, c, b, x = self.Abcx()
@@ -1654,17 +1654,17 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: AP = P.auxiliary_problem()
             sage: P.objective_variable()
-            z
+            'z'
             sage: AP.objective_variable()
-            w
+            'w'
             sage: P = InteractiveLPProblemStandardForm(A, b, c, style="vanderbei")
             sage: AP = P.auxiliary_problem()
             sage: AP.objective_variable()
-            xi
+            'xi'
             sage: P = InteractiveLPProblemStandardForm(A, b, c, style="vanderbei")
             sage: AP = P.auxiliary_problem(objective_variable="aux")
             sage: AP.objective_variable()
-            aux   
+            'aux'   
                      
         """
         X = self.coordinate_ring().gens()
@@ -1997,6 +1997,11 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
     def objective_variable(self):
         r"""
 
+        Return a string of the objective variable index
+
+        OUTPUT:
+            a string of the objective variable_index
+
         EXAMPLES::
 
             sage: A = ([1, 1], [3, 1], [-1, -1])
@@ -2004,11 +2009,11 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             sage: c = (10, 5)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: P.objective_variable()
-            z
+            'z'
 
         """
         objective_variable = self._objective_variable
-        print objective_variable
+        return objective_variable
 
     def revised_dictionary(self, *x_B):
         r"""
@@ -2332,25 +2337,20 @@ class LPAbstractDictionary(SageObject):
 
     def add_a_cut(self, basic_variable=None, new_slack_variable=None):
         r"""
-
         Update the dictionary by adding a Gomory fractional cut
-
         INPUT:
-
         -``basic_variable`` -- (default: None) a string specifying
         the basic variable that will provide the source row for the cut. 
         -``new_slack_variable`` --(default: None) a string giving
         the name of the new_slack_variable. If the argument is none,
         the new slack variable will be the "xn" where n is 
         the next index of variable list.
-
         OUTPUT:
         
         -none, but the dictionary will be updated with an additional 
         row that is constructed from a Gomory fractional cut, while the 
         source row can be chosen by the user or picked by the most 
         fractional basic variable
-
         EXAMPLES::
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
@@ -3487,6 +3487,10 @@ class LPDictionary(LPAbstractDictionary):
     def objective_variable(self):
         r"""
 
+        Return a string of the objective variable
+
+        OUTPUT::
+            a string of the objective variable
 
         EXAMPLES::
 
@@ -3496,9 +3500,9 @@ class LPDictionary(LPAbstractDictionary):
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.initial_dictionary()
             sage: D.objective_variable()
-            z
+            'z'
         """
-        print self._objective_variable  
+        return self._objective_variable  
 
     def row_coefficients(self, v):
         r"""

@@ -2383,25 +2383,30 @@ class LPAbstractDictionary(SageObject):
 
     def add_a_cut(self, basic_variable=None, new_slack_variable=None):
         r"""
+
         Update the dictionary by adding a Gomory fractional cut
+
         INPUT:
+
         -``basic_variable`` -- (default: None) a string specifying
         the basic variable that will provide the source row for the cut. 
         -``new_slack_variable`` --(default: None) a string giving
         the name of the new_slack_variable. If the argument is none,
         the new slack variable will be the "xn" where n is 
         the next index of variable list.
+
         OUTPUT:
         
         -none, but the dictionary will be updated with an additional 
         row that is constructed from a Gomory fractional cut, while the 
         source row can be chosen by the user or picked by the most 
         fractional basic variable
+
         EXAMPLES::
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
             sage: D.add_a_cut()
             sage: D.basic_variables()
@@ -2411,6 +2416,39 @@ class LPAbstractDictionary(SageObject):
             (-1/10, -4/5)
             sage: D.constant_terms()
             (33/10, 13/10, -3/10)
+
+        add_a_cut refuses making a cut if a non-integer variable is 
+        among the non-basic variables with non-zero coefficients
+
+            sage: A = ([1, 3, 5], [2, 6, 9], [6, 8, 3])
+            sage: b = (12/10, 23/10, 31/10)
+            sage: c = (3, 5, 7)
+                sage: P = InteractiveLPProblemStandardForm(A, b, c,
+                ....: integer_variables= {'x1', 'x3'})
+            sage: D = P.final_dictionary()
+            sage: D.nonbasic_variables()
+            (x6, x2, x4)
+            sage: D._integer_variables
+            {x1, x3}
+            sage: D.row_coefficients("x3")
+            (-1/27, 10/27, 2/9)
+
+        If the user chooses x3 to provide the source row, add_a_cut
+        will give an error, because the non-integer variable x6 
+        has a non-zero coefficient 1/27 on the source row
+
+            sage: D.add_a_cut(basic_variable='x3')
+            Traceback (most recent call last):
+            ...
+            ValueError: this is not a valid cut
+
+        We cannot add a Gomory fractional cut to this dictionary, because 
+        the non-integer variable x6 has non-zero coefficient on each row
+
+            sage: D.add_a_cut()
+            Traceback (most recent call last):
+            ...
+            ValueError: there does not exist a valid cut
             
         """
 
@@ -2419,17 +2457,36 @@ class LPAbstractDictionary(SageObject):
         b = self.constant_terms()
         n = len(N)
         m = len(B)
-        
+        integer_variables = self._integer_variables
+
+        def valid_cut(choose_variable):
+            A_ith_row = self.row_coefficients(choose_variable)
+            for i in range (n):
+                if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
+                    return False
+            return True
+
         if all(i.is_integer() for i in b):
-            raise ValueError("The solution are all integer. There is no way to add a cut.")
+            raise ValueError("the solution are all integer, there is no way to add a cut")
         if basic_variable != None:
             basic_variable = variable(self.coordinate_ring(), basic_variable)
             choose_variable = basic_variable
-            variable_index = list(B).index(choose_variable)
+            index = list(B).index(choose_variable)
+            if not valid_cut(choose_variable):
+                raise ValueError("this is not a valid cut")
         else:
-            variable_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
-            variable_index = variable_list.index(min(variable_list))
-            choose_variable = B[variable_index]
+            fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
+            variable_list = list(B)
+            while True:
+                index = fraction_list.index(min(fraction_list))
+                choose_variable = variable_list[index]
+                if valid_cut(choose_variable):
+                    break
+                fraction_list.remove(min(fraction_list))
+                variable_list.remove(choose_variable)
+                if not fraction_list:
+                    raise ValueError("there does not exist a valid cut")
+
         if new_slack_variable != None:
             if not isinstance(new_slack_variable, str):
                 raise TypeError("entering must be a string of a slack variable name")
@@ -2444,7 +2501,7 @@ class LPAbstractDictionary(SageObject):
         cut_nonbasic_coefficients = [ A_ith_row[i].floor() - 
                                       A_ith_row[i] for i in range (n)]
 
-        cut_constant = b[variable_index].floor() - b[variable_index]
+        cut_constant = b[index].floor() - b[index]
         
         self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable)
 
@@ -3630,7 +3687,7 @@ class LPDictionary(LPAbstractDictionary):
             sage: A = ([-1/3, 5/7], [9/111, 13/17])
             sage: b = (5/13, 19/27)
             sage: c = (17/47, -23/53)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1','x2','x3','x4'})
             sage: D = P.final_dictionary()
             sage: D.add_a_cut()
             sage: D.run_dual_simplex_method()  # not tested
@@ -3687,7 +3744,15 @@ class LPDictionary(LPAbstractDictionary):
             return ("\\begin{gather*}\n\\allowdisplaybreaks\n" +
                     "\\displaybreak[0]\\\\\n".join(result) +
                     "\n\\end{gather*}")
-        return _assemble_arrayl(result, 1.5)
+        #update integer_variables
+        # A = self._AbcvBNz[0]
+        # b = self._AbcvBNz[1]
+        # B = self._AbcvBNz[4]
+        # m = len(B)
+        # if b[m-1].is_integer() and all(coef.is_integer() for coef in A[m-1]):
+        #     self._integer_variables.add(variable(self.coordinate_ring(), 
+        #                                             B[]))
+        # return _assemble_arrayl(result, 1.5)
 
     def update(self):
         r"""
@@ -3759,22 +3824,23 @@ class LPDictionary(LPAbstractDictionary):
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c, 
-            ....: integer_variables=True)
+            ....: integer_variables={'x1','x2','x3','x4'})
             sage: D = P.final_dictionary()
             sage: number_of_cut = D.run_cutting_plane_algorithm()
             sage: number_of_cut
             5
-            sage: A = ([-8, 1], [8, 1])
-            sage: b = (0, 8)
-            sage: c = (-1/27, 1/31)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c,
-            ....: integer_variables=True)
-            sage: D = P.final_dictionary()
-            sage: number_of_cut = D.run_cutting_plane_algorithm()
-            sage: number_of_cut
-            9
+            
 
         """
+        # sage: A = ([-8, 1], [8, 1])
+        #     sage: b = (0, 8)
+        #     sage: c = (-1/27, 1/31)
+        #     sage: P = InteractiveLPProblemStandardForm(A, b, c,
+        #     ....: integer_variables={'x1','x2','x3','x4'})
+        #     sage: D = P.final_dictionary()
+        #     sage: number_of_cut = D.run_cutting_plane_algorithm()
+        #     sage: number_of_cut
+        #     9
         d = self
         number_of_cut = 0
         while True:

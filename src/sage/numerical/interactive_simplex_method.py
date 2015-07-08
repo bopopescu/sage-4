@@ -618,11 +618,7 @@ class InteractiveLPProblem(SageObject):
         else:
             self._integer_variables = set([])
             for v in integer_variables:
-                var = variable(R1, v)
-                if var not in set(x) and var not in set(slack_variables):
-                    raise ValueError("every integer variable must be a problem variable")
-                else:
-                    self._integer_variables.add(var)
+                self._integer_variables.add(variable(R1, v))
         if not self._integer_variables.intersection(set(slack_variables)): 
             if integer_variables:
                 for i in range (m):
@@ -1609,11 +1605,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         else:
             self._integer_variables = set([])
             for v in integer_variables:
-                var = variable(self.coordinate_ring(), v)
-                if var not in set(self.Abcx()[3]) and var not in set(self.slack_variables()):
-                    raise ValueError("every integer variable must be a problem variable")
-                else:
-                    self._integer_variables.add(var)
+                self._integer_variables.add(variable(self.coordinate_ring(), v))
             #if there is no assigned integer slack variables by the user
             # use sufficient conditions to assign slack variables to be integer        
         if not self._integer_variables.intersection(set(self.slack_variables())): 

@@ -540,6 +540,30 @@ class InteractiveLPProblem(SageObject):
             sage: c = (10, 5)
             sage: P = InteractiveLPProblem(A, b, c, ["C", "B"], variable_type=">=")
             sage: TestSuite(P).run()
+
+        Test for the sufficient conditions for integer slack variables
+            sage: P = InteractiveLPProblem(A, b, c)
+            sage: P._integer_variables
+            set()
+            sage: P = InteractiveLPProblem(A, b, c, integer_variables=True)
+            sage: P._integer_variables
+            {x1, x2, x3, x4}
+            sage: b1 = (11/10, 5)
+            sage: P = InteractiveLPProblem(A, b1, c, integer_variables=True)
+            sage: P._integer_variables
+            {x1, x2, x4}
+            sage: A1 = ([1, 1], [3/10, 1])
+            sage: P = InteractiveLPProblem(A1, b1, c, integer_variables=True)
+            sage: P._integer_variables
+            {x1, x2}
+
+        Allow the user to choose integer slack variables which may violate the sufficient
+        conditions
+            sage: P = InteractiveLPProblem(A, b, c, integer_variables={'x1', 'x2', 'x3'})
+            sage: P._integer_variables
+            {x1, x2, x3}
+
+
         """
         super(InteractiveLPProblem, self).__init__()
         A = matrix(A)
@@ -622,7 +646,7 @@ class InteractiveLPProblem(SageObject):
         if not self._integer_variables.intersection(set(slack_variables)): 
             if integer_variables:
                 for i in range (m):
-                    if b[i].is_integer() and (coef.is_integer() for coef in A[i]):
+                    if b[i].is_integer() and all(coef.is_integer() for coef in A[i]):
                         self._integer_variables.add(variable(R1, slack_variables[i]))
 
     def __eq__(self, other):
@@ -1540,6 +1564,28 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             sage: c = (10, 5)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: TestSuite(P).run()
+
+        Test for the sufficient conditions for integer slack variables
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P._integer_variables
+            set()
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: P._integer_variables
+            {x1, x2, x3, x4}
+            sage: b1 = (11/10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b1, c, integer_variables=True)
+            sage: P._integer_variables
+            {x1, x2, x4}
+            sage: A1 = ([1, 1], [3/10, 1])
+            sage: P = InteractiveLPProblemStandardForm(A1, b1, c, integer_variables=True)
+            sage: P._integer_variables
+            {x1, x2}
+
+        Allow the user to choose integer slack variables which may violate the sufficient
+        conditions
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1', 'x2', 'x3'})
+            sage: P._integer_variables
+            {x1, x2, x3}
         """
         if problem_type not in ("max", "-max"):
             raise ValueError("problems in standard form must be of (negative) "
@@ -1611,7 +1657,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         if not self._integer_variables.intersection(set(self.slack_variables())): 
             if integer_variables:
                 for i in range (m):
-                    if b[i].is_integer() and (coef.is_integer() for coef in A[i]):
+                    if b[i].is_integer() and all(coef.is_integer() for coef in A[i]):
                         self._integer_variables.add(variable(self.coordinate_ring(), 
                                                                 self.slack_variables()[i]))
 

@@ -2431,14 +2431,14 @@ class LPAbstractDictionary(SageObject):
             sage: D.constant_terms()
             (33/10, 13/10)
         
-        If the source row is related to x2, then the cut is invalid, because 
-        x2 is 33/10 as a basic variable in the dictionary. The row related to
-        x1 does not provide valid cut for the same reason
+        If the source row is related to x2, then the source row is ineligible, 
+        because x2 is 33/10 as a basic variable in the dictionary. The row related to
+        x1 is neither an eligible row the same reason
 
             sage: D.add_a_cut()
             Traceback (most recent call last):
             ...
-            ValueError: there does not exist a valid cut
+            ValueError: there does not exist an eligible source row
 
 
         add_a_cut also refuses making a cut if a non-integer variable is 
@@ -2464,7 +2464,7 @@ class LPAbstractDictionary(SageObject):
             sage: D.add_a_cut(basic_variable='x3')
             Traceback (most recent call last):
             ...
-            ValueError: this is not a valid cut
+            ValueError: this is not an eligible source row
 
         We cannot add a Gomory fractional cut to this dictionary, because 
         the non-integer variable x6 has non-zero coefficient on each row
@@ -2472,7 +2472,7 @@ class LPAbstractDictionary(SageObject):
             sage: D.add_a_cut()
             Traceback (most recent call last):
             ...
-            ValueError: there does not exist a valid cut
+            ValueError: there does not exist an eligible source row
             
         """
 
@@ -2483,7 +2483,7 @@ class LPAbstractDictionary(SageObject):
         m = len(B)
         integer_variables = self._integer_variables
 
-        def valid_cut(choose_variable, index):
+        def eligible_source_row(choose_variable, index):
             A_ith_row = self.row_coefficients(choose_variable)
             for i in range (n):
                 if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
@@ -2498,20 +2498,20 @@ class LPAbstractDictionary(SageObject):
             basic_variable = variable(self.coordinate_ring(), basic_variable)
             choose_variable = basic_variable
             index = list(B).index(choose_variable)
-            if not valid_cut(choose_variable, index):
-                raise ValueError("this is not a valid cut")
+            if not eligible_source_row(choose_variable, index):
+                raise ValueError("this is not an eligible source row")
         else:
             fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
             variable_list = list(B)
             while True:
                 index = fraction_list.index(min(fraction_list))
                 choose_variable = variable_list[index]
-                if valid_cut(choose_variable, index):
+                if eligible_source_row(choose_variable, index):
                     break
                 fraction_list.remove(min(fraction_list))
                 variable_list.remove(choose_variable)
                 if not fraction_list:
-                    raise ValueError("there does not exist a valid cut")
+                    raise ValueError("there does not exist an eligible source row")
 
         if new_slack_variable != None:
             if not isinstance(new_slack_variable, str):

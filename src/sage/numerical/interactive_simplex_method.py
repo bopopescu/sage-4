@@ -2423,8 +2423,8 @@ class LPAbstractDictionary(SageObject):
             sage: A = ([1, 3, 5], [2, 6, 9], [6, 8, 3])
             sage: b = (12/10, 23/10, 31/10)
             sage: c = (3, 5, 7)
-                sage: P = InteractiveLPProblemStandardForm(A, b, c,
-                ....: integer_variables= {'x1', 'x3'})
+            sage: P = InteractiveLPProblemStandardForm(A, b, c,
+            ....: integer_variables= {'x1', 'x3'})
             sage: D = P.final_dictionary()
             sage: D.nonbasic_variables()
             (x6, x2, x4)
@@ -2503,7 +2503,8 @@ class LPAbstractDictionary(SageObject):
 
         cut_constant = b[index].floor() - b[index]
         
-        self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable)
+        self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable, \
+                    integer_slack_variable=True)
 
     def add_row(self):
         r"""
@@ -3324,7 +3325,7 @@ class LPDictionary(LPAbstractDictionary):
             lines[l] = line
         return  "\n".join(lines)
 
-    def add_row(self, nonbasic_coefficients, constant, slack_variable):
+    def add_row(self, nonbasic_coefficients, constant, slack_variable, integer_slack_variable=False):
         r"""
         Update a dictionary with an additional row based on a given dictionary, the index of
         an indicated basic variable that provides the source row and a variable name 
@@ -3335,6 +3336,8 @@ class LPDictionary(LPAbstractDictionary):
         -``nonbasic_coefficients``-- a list of the coefficients for the new row
         -``constant``-- a number of the constant term for the new row
         -``slack_variable``-- a string of the name for the new slack variable
+        -``integer_slack_variable``-- (default: False) a boolean value indicates if the new slack
+          variable is integer or not.  
 
         OUTPUT:
 
@@ -3347,14 +3350,15 @@ class LPDictionary(LPAbstractDictionary):
             sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: D = P.final_dictionary()
-            sage: D.add_row([7, 11], 42, 'c')
+            sage: D.add_row([7, 11], 42, 'c', integer_slack_variable=True)
             sage: D.row_coefficients("c")
             (7, 11)
             sage: D.constant_terms()[2]
             42
             sage: D.basic_variables()[2]
             c
-
+            sage: D._integer_variables
+            {c}
         """
 
         B = self.basic_variables()
@@ -3384,6 +3388,8 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[1] = b
         self._AbcvBNz[4] = B2
         self._AbcvBNz[5] = N2
+        if integer_slack_variable==True:
+            self._integer_variables.add(variable(R, slack_variable))
 
     def ELLUL(self, entering, leaving):
         r"""
@@ -4220,7 +4226,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
         bottom = "\n".join(lines)
         return _assemble_arrayl([top, "", bottom], 1.5)
     
-    def add_row(self, nonbasic_coefficients, constant, slack_variable):
+    def add_row(self, nonbasic_coefficients, constant, slack_variable, integer_slack_variable=True):
         r"""
         Update a dictionary with an additional row based on a given dictionary, the index of
         an indicated basic variable that provides the source row and a variable name 
@@ -4231,6 +4237,8 @@ class LPRevisedDictionary(LPAbstractDictionary):
         -``nonbasic_coefficients``-- a list of the coefficients for the new row
         -``constant``-- a number of the constant term for the new row
         -``slack_variable``-- a string of the name for the new slack variable
+        -``integer_slack_variable``-- (default: False) a boolean value indicates if the new slack
+          variable is integer or not.  
 
         OUTPUT:
 
@@ -4266,13 +4274,15 @@ class LPRevisedDictionary(LPAbstractDictionary):
             sage: D = P.final_revised_dictionary()
             sage: D.nonbasic_variables()
             (x1, x2, x4, x7, x8)
-            sage: D.add_row([5 ,7, 11, 13, 9], 99, 'c')
+            sage: D.add_row([5 ,7, 11, 13, 9], 99, 'c', integer_slack_variable=True)
             sage: D.row_coefficients("c")
             (5, 7, 11, 13, 9)
             sage: D.constant_terms()[5]
             99
             sage: D.basic_variables()[5]
             c
+            sage: D._integer_variables
+            {c}
         """
 
         basic = self.basic_variables()
@@ -4336,6 +4346,8 @@ class LPRevisedDictionary(LPAbstractDictionary):
         self._x_B = new_basic
         B = self.B()
         self._B_inverse = B.inverse()
+        if integer_slack_variable==True:
+            self._integer_variables.add(variable(R, slack_variable))
 
     def A(self, v):
         r"""

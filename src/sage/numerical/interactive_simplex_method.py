@@ -2433,7 +2433,7 @@ class LPAbstractDictionary(SageObject):
         
         If the source row is related to x2, then the source row is ineligible, 
         because x2 is 33/10 as a basic variable in the dictionary. The row related to
-        x1 is neither an eligible row the same reason
+        x1 is neither an eligible row for the same reason
 
             sage: D.add_a_cut()
             Traceback (most recent call last):
@@ -3858,8 +3858,8 @@ class LPDictionary(LPAbstractDictionary):
             sage: P = InteractiveLPProblemStandardForm(A, b, c, 
             ....: integer_variables={'x3','x4'})
             sage: D = P.final_dictionary()
-            sage: number_of_cut = D.run_cutting_plane_algorithm()
-            sage: number_of_cut
+            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts
             6
             sage: A = ([-8, 1], [8, 1])
             sage: b = (0, 8)
@@ -3867,22 +3867,22 @@ class LPDictionary(LPAbstractDictionary):
             sage: P = InteractiveLPProblemStandardForm(A, b, c,
             ....: integer_variables={'x3','x4'})
             sage: D = P.final_dictionary()
-            sage: number_of_cut = D.run_cutting_plane_algorithm()
-            sage: number_of_cut
+            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts
             9
             
 
         """
         d = self
-        number_of_cut = 0
+        number_of_cuts = 0
         while True:
             d.add_a_cut()
             d.run_dual_simplex_method()
             A, b, c, v, B, N, z = d._AbcvBNz
-            number_of_cut += 1
+            number_of_cuts += 1
             if all(i.is_integer() for i in b):
                 break
-        return number_of_cut
+        return number_of_cuts
 
 def random_dictionary(m, n, bound=5, special_probability=0.2):
     r"""

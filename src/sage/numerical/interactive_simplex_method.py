@@ -1363,7 +1363,40 @@ class InteractiveLPProblem(SageObject):
                 continue
             ieqs = map(lambda ieq: map(QQ, ieq), ieqs)
             halfplane = box.intersection(Polyhedron(ieqs=ieqs))
-            result += halfplane.render_solid(alpha=alpha, color=color)
+
+            #none of the problem variables are integer, therefore, a plane
+            if not self._integer_variables.intersection(set(x)):
+                result += halfplane.render_solid(alpha=alpha, color=color)
+
+        #all problem variables are integer, therefore, integer grids
+        if self._integer_variables.intersection(set(x)) == set(x):
+            feasible_dot = F.integral_points()
+            result += point(feasible_dot, color='blue', alpha=1, size=22)
+        #one of the problem variables is integer, therefore, lines
+        if x[0] in self._integer_variables and not x[1] in self._integer_variables:
+            for i in range (xmin, xmax+1):
+                x_line = Polyhedron(eqns=[[-i, 1, 0]])
+                vertices = x_line.intersection(F).vertices()
+                if not vertices:
+                    continue
+                if x_line.intersection(F).n_vertices() == 2:
+                    result += line(vertices, color='blue', thickness=2)
+                else:
+                    result += point(x_line.intersection(F).vertices_list(), 
+                        color='blue', size=22)
+        elif x[1] in self._integer_variables and not x[0] in self._integer_variables:
+            for i in range (xmin, xmax+1):
+                y_line = Polyhedron(eqns=[[-i, 0, 1]])
+                vertices = y_line.intersection(F).vertices()
+                if not vertices:
+                    continue
+                if y_line.intersection(F).n_vertices() == 2:
+                    result += line(vertices, color='blue', thickness=2)
+                else:
+                    result += point(y_line.intersection(F).vertices_list(), 
+                        color='blue', size=22)
+                    
+
         if F.vertices():
             result += F.render_solid(alpha=alpha, color="gray")
             result += text("$F$", F.center(),

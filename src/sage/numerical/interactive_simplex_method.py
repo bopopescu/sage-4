@@ -1368,12 +1368,22 @@ class InteractiveLPProblem(SageObject):
             if not self._integer_variables.intersection(set(x)):
                 result += halfplane.render_solid(alpha=alpha, color=color)
 
+        #tricks from integer slack variables
+        #example 1, x <= 5 where the slack variable is integer
+        integer_variables = self._integer_variables
+        for i in range (self.m()):
+        	if self.slack_variables()[i] in self._integer_variables and b[i].is_integer():
+        		if A[i][0].is_integer() and A[i][1] == 0:
+        			integer_variables.add(x[0])
+    			elif A[i][0]==0 and A[i][1].is_integer():
+        			integer_variables.add(x[1])
+
         #all problem variables are integer, therefore, integer grids
-        if self._integer_variables.intersection(set(x)) == set(x):
+        if integer_variables.intersection(set(x)) == set(x):
             feasible_dot = F.integral_points()
             result += point(feasible_dot, color='blue', alpha=1, size=22)
         #one of the problem variables is integer, therefore, lines
-        if x[0] in self._integer_variables and not x[1] in self._integer_variables:
+        if x[0] in integer_variables and not x[1] in integer_variables:
             for i in range (xmin, xmax+1):
                 x_line = Polyhedron(eqns=[[-i, 1, 0]])
                 vertices = x_line.intersection(F).vertices()
@@ -1384,7 +1394,7 @@ class InteractiveLPProblem(SageObject):
                 else:
                     result += point(x_line.intersection(F).vertices_list(), 
                         color='blue', size=22)
-        elif x[1] in self._integer_variables and not x[0] in self._integer_variables:
+        elif x[1] in integer_variables and not x[0] in integer_variables:
             for i in range (xmin, xmax+1):
                 y_line = Polyhedron(eqns=[[-i, 0, 1]])
                 vertices = y_line.intersection(F).vertices()
@@ -3809,15 +3819,6 @@ class LPDictionary(LPAbstractDictionary):
             return ("\\begin{gather*}\n\\allowdisplaybreaks\n" +
                     "\\displaybreak[0]\\\\\n".join(result) +
                     "\n\\end{gather*}")
-        #update integer_variables
-        # A = self._AbcvBNz[0]
-        # b = self._AbcvBNz[1]
-        # B = self._AbcvBNz[4]
-        # m = len(B)
-        # if b[m-1].is_integer() and all(coef.is_integer() for coef in A[m-1]):
-        #     self._integer_variables.add(variable(self.coordinate_ring(), 
-        #                                             B[]))
-        # return _assemble_arrayl(result, 1.5)
 
     def update(self):
         r"""
@@ -4400,13 +4401,14 @@ class LPRevisedDictionary(LPAbstractDictionary):
         A = A.stack(new_row)
         b = vector(tuple(b) + (new_b,))
 
-        new_problem = InteractiveLPProblemStandardForm(A, b, c)
+        if integer_slack_variable==True:
+            self._integer_variables.add(variable(R, slack_variable))
+        new_problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=self._integer_variables)
         self._problem = new_problem
         self._x_B = new_basic
         B = self.B()
         self._B_inverse = B.inverse()
-        if integer_slack_variable==True:
-            self._integer_variables.add(variable(R, slack_variable))
+        
 
     def A(self, v):
         r"""

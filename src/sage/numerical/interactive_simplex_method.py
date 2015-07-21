@@ -648,6 +648,17 @@ class InteractiveLPProblem(SageObject):
                 for i in range (m):
                     if b[i].is_integer() and all(coef.is_integer() for coef in A[i]):
                         self._integer_variables.add(variable(R1, slack_variables[i]))
+        #use sufficient conditions to assign problem variables to be integer
+        #tricks from integer slack variables
+        #example 1, x <= 5 where the slack variable is integer
+        if self._integer_variables.intersection(set(x)) != set(x):
+		    for i in range (m):
+		    	if slack_variables[i] in self._integer_variables and b[i].is_integer():
+		    		for j in range (self.n()):
+		    			copy_Ai = copy(list(A[i]))
+		    			copy_Ai.remove(copy_Ai[j])
+		    			if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
+		    				self._integer_variables.add(x[j])
 
     def __eq__(self, other):
         r"""
@@ -1368,22 +1379,12 @@ class InteractiveLPProblem(SageObject):
             if not self._integer_variables.intersection(set(x)):
                 result += halfplane.render_solid(alpha=alpha, color=color)
 
-        #tricks from integer slack variables
-        #example 1, x <= 5 where the slack variable is integer
-        integer_variables = self._integer_variables
-        for i in range (self.m()):
-        	if self.slack_variables()[i] in self._integer_variables and b[i].is_integer():
-        		if A[i][0].is_integer() and A[i][1] == 0:
-        			integer_variables.add(x[0])
-    			elif A[i][0]==0 and A[i][1].is_integer():
-        			integer_variables.add(x[1])
-
         #all problem variables are integer, therefore, integer grids
-        if integer_variables.intersection(set(x)) == set(x):
+        if self._integer_variables.intersection(set(x)) == set(x):
             feasible_dot = F.integral_points()
             result += point(feasible_dot, color='blue', alpha=1, size=22)
         #one of the problem variables is integer, therefore, lines
-        if x[0] in integer_variables and not x[1] in integer_variables:
+        if x[0] in self._integer_variables and not x[1] in self._integer_variables:
             for i in range (xmin, xmax+1):
                 x_line = Polyhedron(eqns=[[-i, 1, 0]])
                 vertices = x_line.intersection(F).vertices()
@@ -1394,7 +1395,7 @@ class InteractiveLPProblem(SageObject):
                 else:
                     result += point(x_line.intersection(F).vertices_list(), 
                         color='blue', size=22)
-        elif x[1] in integer_variables and not x[0] in integer_variables:
+        elif x[1] in self._integer_variables and not x[0] in self._integer_variables:
             for i in range (xmin, xmax+1):
                 y_line = Polyhedron(eqns=[[-i, 0, 1]])
                 vertices = y_line.intersection(F).vertices()
@@ -1694,16 +1695,26 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         else:
             self._integer_variables = set([])
             for v in integer_variables:
-                self._integer_variables.add(variable(self.coordinate_ring(), v))
-            #if there is no assigned integer slack variables by the user
-            # use sufficient conditions to assign slack variables to be integer        
+                self._integer_variables.add(variable(R, v))
+    	#if there is no assigned integer slack variables by the user
+        # use sufficient conditions to assign slack variables to be integer        
         if not self._integer_variables.intersection(set(self.slack_variables())): 
             if integer_variables:
                 for i in range (m):
                     if b[i].is_integer() and all(coef.is_integer() for coef in A[i]):
-                        self._integer_variables.add(variable(self.coordinate_ring(), 
-                                                                self.slack_variables()[i]))
-
+                        self._integer_variables.add(variable(R, self.slack_variables()[i]))
+        #use sufficient conditions to assign problem variables to be integer
+        #tricks from integer slack variables
+        #example 1, x <= 5 where the slack variable is integer
+        if self._integer_variables.intersection(set(x)) != set(x):
+		    for i in range (self.m()):
+		    	if self.slack_variables()[i] in self._integer_variables and b[i].is_integer():
+		    		for j in range (self.n()):
+		    			copy_Ai = copy(list(A[i]))
+		    			copy_Ai.remove(copy_Ai[j])
+		    			if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
+		    				self._integer_variables.add(x[j])
+		    		
 
 
 
@@ -2740,6 +2751,82 @@ class LPAbstractDictionary(SageObject):
                                               self.leaving_coefficients(),
                                             self.nonbasic_variables()) if a < 0]
 
+    def ELLUL(self, entering, leaving):
+        r"""
+        Perform the Enter-Leave-LaTeX-Update-LaTeX step sequence on ``self``.
+
+        INPUT:
+
+        - ``entering`` -- the entering variable
+
+        - ``leaving`` -- the leaving variable
+
+        OUTPUT:
+
+        - a string with LaTeX code for ``self`` before and after update
+
+        EXAMPLES::
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.initial_dictionary()
+            sage: D.ELLUL("x1", "x4")
+            \renewcommand{\arraystretch}{1.5} \setlength{\arraycolsep}{0.125em}
+            \begin{array}{|rcrcrcr|}
+            \hline
+            x_{3} & = & 1000 & - &\color{green}  x_{1} & - &  x_{2}\\
+            \color{red}x_{4} &\color{red} = &\color{red} 1500 &\color{red} - &\color{blue} 3 x_{1} &\color{red} - &\color{red}  x_{2}\\
+            \hline
+            z & = & 0 & + &\color{green} 10 x_{1} & + & 5 x_{2}\\
+            \hline
+            \multicolumn{2}{c}{}\\[-3ex]
+            \hline
+            x_{3} & = & 500 & + & \frac{1}{3} x_{4} & - & \frac{2}{3} x_{2}\\
+            x_{1} & = & 500 & - & \frac{1}{3} x_{4} & - & \frac{1}{3} x_{2}\\
+            \hline
+            z & = & 5000 & - & \frac{10}{3} x_{4} & + & \frac{5}{3} x_{2}\\
+            \hline
+            \end{array}
+
+        This is how the above output looks when rendered:
+
+        .. MATH::
+
+            \renewcommand{\arraystretch}{1.5}
+            \begin{array}{|rcrcrcr|}
+            \hline
+            x_{3} \!\!\!&\!\!\! = \!\!\!&\!\!\! 1000 \!\!\!&\!\!\! - \!\!\!&\color{green}{\!\!\!  x_{1} \!\!\!}&\!\!\! - \!\!\!&\!\!\!  x_{2}\\
+            \color{red}{x_{4} \!\!\!}&\color{red}{\!\!\! = \!\!\!}&\color{red}{\!\!\! 1500 \!\!\!}&\color{red}{\!\!\! - \!\!\!}&\color{blue}{{\!\!\! 3 x_{1} \!\!\!}}&\color{red}{\!\!\! - \!\!\!}&\color{red}{\!\!\!  x_{2}}\\
+            \hline
+            z \!\!\!&\!\!\! = \!\!\!&\!\!\! 0 \!\!\!&\!\!\! + \!\!\!&\color{green}{\!\!\! 10 x_{1} \!\!\!}&\!\!\! + \!\!\!&\!\!\! 5 x_{2}\\
+            \hline
+            \\
+            \hline
+            x_{3} \!\!\!&\!\!\! = \!\!\!&\!\!\! 500 \!\!\!&\!\!\! + \!\!\!&\!\!\! \frac{1}{3} x_{4} \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{2}{3} x_{2}\\
+            x_{1} \!\!\!&\!\!\! = \!\!\!&\!\!\! 500 \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{1}{3} x_{4} \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{1}{3} x_{2}\\
+            \hline
+            z \!\!\!&\!\!\! = \!\!\!&\!\!\! 5000 \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{10}{3} x_{4} \!\!\!&\!\!\! + \!\!\!&\!\!\! \frac{5}{3} x_{2}\\
+            \hline
+            \end{array}
+
+        The column of the entering variable is green, while the row of the
+        leaving variable is red in the original dictionary state on the top.
+        The new state after the update step is shown on the bottom.
+        """
+        self.enter(entering)
+        self.leave(leaving)
+        result = latex(self).rsplit("\n", 1)[0] # Remove \end{array}
+        # Make an empty line in the array
+        if generate_real_LaTeX:
+            result += "\n" r"\multicolumn{2}{c}{}\\[-3ex]" "\n"
+        else:
+            result += "\n\\\\\n"
+        self.update()
+        result += latex(self).split("\n", 2)[2] # Remove array header
+        return LatexExpr(result)
+
     def enter(self, v):
         r"""
         Set ``v`` as the entering variable of ``self``.
@@ -3140,6 +3227,155 @@ class LPAbstractDictionary(SageObject):
         """
         raise NotImplementedError 
 
+    def run_cutting_plane_algorithm(self):
+        r"""
+
+        Perform the cutting plane method to solve a ILP problem.
+
+        OUTPUT:
+
+        -a number which is the total number of cuts need to solve a 
+        ILP problem by Gomory fractional Cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, 
+            ....: integer_variables={'x3','x4'})
+            sage: D = P.final_dictionary()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts
+            6
+            sage: A = ([-8, 1], [8, 1])
+            sage: b = (0, 8)
+            sage: c = (-1/27, 1/31)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c,
+            ....: integer_variables={'x3','x4'})
+            sage: D = P.final_dictionary()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts
+            9
+            sage: P1 = InteractiveLPProblemStandardForm(A, b, c,
+            ....: integer_variables={'x3','x4'})
+            sage: D = P1.final_revised_dictionary()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts
+            9
+            
+
+        """
+        d = self
+        number_of_cuts = 0
+        while True:
+            d.add_a_cut()
+            d.run_dual_simplex_method()
+            b = d.constant_terms()
+            number_of_cuts += 1
+            if all(i.is_integer() for i in b):
+                break
+        return number_of_cuts
+
+    def run_dual_simplex_method(self):
+        r"""
+        Apply the dual simplex method to solve a dictionary with an added Gomory 
+        fractional cut and show the steps.
+
+        OUTPUT:
+
+        - a string with `\LaTeX` code of intermediate dictionaries
+
+        .. NOTE::
+
+            You can access the :meth:`final_dictionary`, which is
+            an optimal dictionary for ``self``.
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (4/7, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x3','x4'})
+            sage: D = P.final_dictionary()
+            sage: D.add_a_cut()
+            sage: print(D.run_dual_simplex_method()) # not tested
+            \begin{gather*}
+            \allowdisplaybreaks
+            \renewcommand{\arraystretch}{1.5} \setlength{\arraycolsep}{0.125em}
+            \begin{array}{|rcrcrcr|}
+            \hline
+            x_{2} & = & 3 &  &  & - & x_{5}\\
+            x_{1} & = & \frac{11}{8} & - & \frac{1}{8} x_{4} & + & \frac{1}{4} x_{5}\\
+            x_{3} & = & \frac{3}{8} & - & \frac{1}{8} x_{4} & + & \frac{5}{4} x_{5}\\
+            \hline
+            z & = & \frac{248}{35} & - & \frac{1}{14} x_{4} & - & \frac{137}{70} x_{5}\\
+            \hline
+            \end{array}\displaybreak[0]\\
+            \text{The initial dictionary is feasible.}\displaybreak[0]\\
+            \text{The optimal value: $\frac{248}{35}$. An optimal solution: $\left(\frac{11}{8},\,3,\,\frac{3}{8},\,0,\,0\right)$.}
+            \end{gather*}
+            sage: A = ([-1/3, 5/7], [9/111, 13/17])
+            sage: b = (5/13, 19/27)
+            sage: c = (17/47, -23/53)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x2','x3','x4'})
+            sage: D = P.final_dictionary()
+            sage: D.add_a_cut()
+            sage: D.run_dual_simplex_method()  # not tested
+
+        You should use the typeset mode as the command above generates long
+        `\LaTeX` code::
+
+            sage: print D.run_dual_simplex_method() # not tested
+            \begin{gather*}
+            ...
+            \text{The initial dictionary is infeasible, so use the dual simplex method.}\displaybreak[0]\\
+            ...
+            \text{Entering: $x_{2}$. Leaving: $x_{5}$.}\displaybreak[0]\\
+            ...
+            \text{The dual problem is unbounded in the $x_{1}$ direction.}\displaybreak[0]\\
+            ...
+            \text{The original problem is infeasible.}
+            ...
+            \end{gather*}
+
+        """
+        result = []
+        d = self
+        result.append(latex(d))
+
+
+        def step(entering, leaving):
+            result.append(r"\text{{Entering: ${}$. Leaving: ${}$.}}"
+                          .format(latex(entering), latex(leaving)))
+            result.append(d.ELLUL(entering, leaving))
+
+        if d.is_feasible():
+            result.append(r"\text{The initial dictionary is feasible.}")
+        else:
+            result.append(r"\text{The initial dictionary is infeasible, "
+              "so use the dual simplex method.}")
+            while not d.is_optimal():
+                leaving, entering = min(d.possible_dual_simplex_method_steps())
+                if entering:
+                    step(min(entering), leaving)
+                else:
+                    d.leave(leaving)
+                    result.append(r"\text{{The dual problem is unbounded in the "
+                                  r"${}$ direction.}}".format(latex(leaving)))
+                    result.append(latex(d))
+                    result.append(r"\text{The original problem is infeasible.}")
+                    break
+        if d.is_optimal():
+            v = d.objective_value()
+            result.append((r"\text{{The optimal value: ${}$. "
+                           "An optimal solution: ${}$.}}").format(
+                           latex(v), latex(d.basic_solution(include_slack_variables=True))))
+        if generate_real_LaTeX:
+            return ("\\begin{gather*}\n\\allowdisplaybreaks\n" +
+                    "\\displaybreak[0]\\\\\n".join(result) +
+                    "\n\\end{gather*}")
+
 class LPDictionary(LPAbstractDictionary):
     r"""
     Construct a dictionary for an LP problem.
@@ -3460,82 +3696,6 @@ class LPDictionary(LPAbstractDictionary):
         if integer_slack_variable==True:
             self._integer_variables.add(variable(R, slack_variable))
 
-    def ELLUL(self, entering, leaving):
-        r"""
-        Perform the Enter-Leave-LaTeX-Update-LaTeX step sequence on ``self``.
-
-        INPUT:
-
-        - ``entering`` -- the entering variable
-
-        - ``leaving`` -- the leaving variable
-
-        OUTPUT:
-
-        - a string with LaTeX code for ``self`` before and after update
-
-        EXAMPLES::
-
-            sage: A = ([1, 1], [3, 1])
-            sage: b = (1000, 1500)
-            sage: c = (10, 5)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.initial_dictionary()
-            sage: D.ELLUL("x1", "x4")
-            \renewcommand{\arraystretch}{1.5} \setlength{\arraycolsep}{0.125em}
-            \begin{array}{|rcrcrcr|}
-            \hline
-            x_{3} & = & 1000 & - &\color{green}  x_{1} & - &  x_{2}\\
-            \color{red}x_{4} &\color{red} = &\color{red} 1500 &\color{red} - &\color{blue} 3 x_{1} &\color{red} - &\color{red}  x_{2}\\
-            \hline
-            z & = & 0 & + &\color{green} 10 x_{1} & + & 5 x_{2}\\
-            \hline
-            \multicolumn{2}{c}{}\\[-3ex]
-            \hline
-            x_{3} & = & 500 & + & \frac{1}{3} x_{4} & - & \frac{2}{3} x_{2}\\
-            x_{1} & = & 500 & - & \frac{1}{3} x_{4} & - & \frac{1}{3} x_{2}\\
-            \hline
-            z & = & 5000 & - & \frac{10}{3} x_{4} & + & \frac{5}{3} x_{2}\\
-            \hline
-            \end{array}
-
-        This is how the above output looks when rendered:
-
-        .. MATH::
-
-            \renewcommand{\arraystretch}{1.5}
-            \begin{array}{|rcrcrcr|}
-            \hline
-            x_{3} \!\!\!&\!\!\! = \!\!\!&\!\!\! 1000 \!\!\!&\!\!\! - \!\!\!&\color{green}{\!\!\!  x_{1} \!\!\!}&\!\!\! - \!\!\!&\!\!\!  x_{2}\\
-            \color{red}{x_{4} \!\!\!}&\color{red}{\!\!\! = \!\!\!}&\color{red}{\!\!\! 1500 \!\!\!}&\color{red}{\!\!\! - \!\!\!}&\color{blue}{{\!\!\! 3 x_{1} \!\!\!}}&\color{red}{\!\!\! - \!\!\!}&\color{red}{\!\!\!  x_{2}}\\
-            \hline
-            z \!\!\!&\!\!\! = \!\!\!&\!\!\! 0 \!\!\!&\!\!\! + \!\!\!&\color{green}{\!\!\! 10 x_{1} \!\!\!}&\!\!\! + \!\!\!&\!\!\! 5 x_{2}\\
-            \hline
-            \\
-            \hline
-            x_{3} \!\!\!&\!\!\! = \!\!\!&\!\!\! 500 \!\!\!&\!\!\! + \!\!\!&\!\!\! \frac{1}{3} x_{4} \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{2}{3} x_{2}\\
-            x_{1} \!\!\!&\!\!\! = \!\!\!&\!\!\! 500 \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{1}{3} x_{4} \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{1}{3} x_{2}\\
-            \hline
-            z \!\!\!&\!\!\! = \!\!\!&\!\!\! 5000 \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{10}{3} x_{4} \!\!\!&\!\!\! + \!\!\!&\!\!\! \frac{5}{3} x_{2}\\
-            \hline
-            \end{array}
-
-        The column of the entering variable is green, while the row of the
-        leaving variable is red in the original dictionary state on the top.
-        The new state after the update step is shown on the bottom.
-        """
-        self.enter(entering)
-        self.leave(leaving)
-        result = latex(self).rsplit("\n", 1)[0] # Remove \end{array}
-        # Make an empty line in the array
-        if generate_real_LaTeX:
-            result += "\n" r"\multicolumn{2}{c}{}\\[-3ex]" "\n"
-        else:
-            result += "\n\\\\\n"
-        self.update()
-        result += latex(self).split("\n", 2)[2] # Remove array header
-        return LatexExpr(result)
-
     def basic_variables(self):
         r"""
         Return the basic variables of ``self``.
@@ -3721,105 +3881,6 @@ class LPDictionary(LPAbstractDictionary):
         i = tuple(self.basic_variables()).index(self._leaving)
         return self._AbcvBNz[0][i]
 
-    def run_dual_simplex_method(self):
-        r"""
-        Apply the dual simplex method to solve a dictionary with an added Gomory 
-        fractional cut and show the steps.
-
-        OUTPUT:
-
-        - a string with `\LaTeX` code of intermediate dictionaries
-
-        .. NOTE::
-
-            You can access the :meth:`final_dictionary`, which is
-            an optimal dictionary for ``self``.
-
-        EXAMPLES::
-
-            sage: A = ([-1, 1], [8, 2])
-            sage: b = (2, 17)
-            sage: c = (4/7, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x3','x4'})
-            sage: D = P.final_dictionary()
-            sage: D.add_a_cut()
-            sage: print(D.run_dual_simplex_method()) # not tested
-            \begin{gather*}
-            \allowdisplaybreaks
-            \renewcommand{\arraystretch}{1.5} \setlength{\arraycolsep}{0.125em}
-            \begin{array}{|rcrcrcr|}
-            \hline
-            x_{2} & = & 3 &  &  & - & x_{5}\\
-            x_{1} & = & \frac{11}{8} & - & \frac{1}{8} x_{4} & + & \frac{1}{4} x_{5}\\
-            x_{3} & = & \frac{3}{8} & - & \frac{1}{8} x_{4} & + & \frac{5}{4} x_{5}\\
-            \hline
-            z & = & \frac{248}{35} & - & \frac{1}{14} x_{4} & - & \frac{137}{70} x_{5}\\
-            \hline
-            \end{array}\displaybreak[0]\\
-            \text{The initial dictionary is feasible.}\displaybreak[0]\\
-            \text{The optimal value: $\frac{248}{35}$. An optimal solution: $\left(\frac{11}{8},\,3,\,\frac{3}{8},\,0,\,0\right)$.}
-            \end{gather*}
-            sage: A = ([-1/3, 5/7], [9/111, 13/17])
-            sage: b = (5/13, 19/27)
-            sage: c = (17/47, -23/53)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x2','x3','x4'})
-            sage: D = P.final_dictionary()
-            sage: D.add_a_cut()
-            sage: D.run_dual_simplex_method()  # not tested
-
-        You should use the typeset mode as the command above generates long
-        `\LaTeX` code::
-
-            sage: print D.run_dual_simplex_method() # not tested
-            \begin{gather*}
-            ...
-            \text{The initial dictionary is infeasible, so use the dual simplex method.}\displaybreak[0]\\
-            ...
-            \text{Entering: $x_{2}$. Leaving: $x_{5}$.}\displaybreak[0]\\
-            ...
-            \text{The dual problem is unbounded in the $x_{1}$ direction.}\displaybreak[0]\\
-            ...
-            \text{The original problem is infeasible.}
-            ...
-            \end{gather*}
-
-        """
-        result = []
-        d = self
-        result.append(latex(d))
-
-
-        def step(entering, leaving):
-            result.append(r"\text{{Entering: ${}$. Leaving: ${}$.}}"
-                          .format(latex(entering), latex(leaving)))
-            result.append(d.ELLUL(entering, leaving))
-
-        if d.is_feasible():
-            result.append(r"\text{The initial dictionary is feasible.}")
-        else:
-            result.append(r"\text{The initial dictionary is infeasible, "
-              "so use the dual simplex method.}")
-            while not d.is_optimal():
-                leaving, entering = min(d.possible_dual_simplex_method_steps())
-                if entering:
-                    step(min(entering), leaving)
-                else:
-                    d.leave(leaving)
-                    result.append(r"\text{{The dual problem is unbounded in the "
-                                  r"${}$ direction.}}".format(latex(leaving)))
-                    result.append(latex(d))
-                    result.append(r"\text{The original problem is infeasible.}")
-                    break
-        if d.is_optimal():
-            v = d.objective_value()
-            result.append((r"\text{{The optimal value: ${}$. "
-                           "An optimal solution: ${}$.}}").format(
-                           latex(v), latex(d.basic_solution(include_slack_variables=True))))
-        if generate_real_LaTeX:
-            return ("\\begin{gather*}\n\\allowdisplaybreaks\n" +
-                    "\\displaybreak[0]\\\\\n".join(result) +
-                    "\n\\end{gather*}")
-
     def update(self):
         r"""
         Update ``self`` using previously set entering and leaving variables.
@@ -3873,50 +3934,6 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[3] += ce * b[l]
         self._entering = None
         self._leaving = None
-
-    def run_cutting_plane_algorithm(self):
-        r"""
-
-        Perform the cutting plane method to solve a ILP problem.
-
-        OUTPUT:
-
-        -a number which is the total number of cuts need to solve a 
-        ILP problem by Gomory fractional Cut
-
-        EXAMPLES::
-
-            sage: A = ([-1, 1], [8, 2])
-            sage: b = (2, 17)
-            sage: c = (55/10, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, 
-            ....: integer_variables={'x3','x4'})
-            sage: D = P.final_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm()
-            sage: number_of_cuts
-            6
-            sage: A = ([-8, 1], [8, 1])
-            sage: b = (0, 8)
-            sage: c = (-1/27, 1/31)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c,
-            ....: integer_variables={'x3','x4'})
-            sage: D = P.final_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm()
-            sage: number_of_cuts
-            9
-            
-
-        """
-        d = self
-        number_of_cuts = 0
-        while True:
-            d.add_a_cut()
-            d.run_dual_simplex_method()
-            A, b, c, v, B, N, z = d._AbcvBNz
-            number_of_cuts += 1
-            if all(i.is_integer() for i in b):
-                break
-        return number_of_cuts
 
 def random_dictionary(m, n, bound=5, special_probability=0.2):
     r"""

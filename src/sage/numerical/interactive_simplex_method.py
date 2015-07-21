@@ -2486,6 +2486,82 @@ class LPAbstractDictionary(SageObject):
                                               self.leaving_coefficients(),
                                             self.nonbasic_variables()) if a < 0]
 
+    def ELLUL(self, entering, leaving):
+        r"""
+        Perform the Enter-Leave-LaTeX-Update-LaTeX step sequence on ``self``.
+
+        INPUT:
+
+        - ``entering`` -- the entering variable
+
+        - ``leaving`` -- the leaving variable
+
+        OUTPUT:
+
+        - a string with LaTeX code for ``self`` before and after update
+
+        EXAMPLES::
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.initial_dictionary()
+            sage: D.ELLUL("x1", "x4")
+            \renewcommand{\arraystretch}{1.5}
+            \begin{array}{|rcrcrcr|}
+            \hline
+            x_{3} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 1000 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\color{green}\mspace{-6mu} x_{1} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} x_{2}\\
+            \color{red}x_{4} \mspace{-6mu}&\color{red}\mspace{-6mu} = \mspace{-6mu}&\color{red}\mspace{-6mu} 1500 \mspace{-6mu}&\color{red}\mspace{-6mu} - \mspace{-6mu}&\color{blue}\mspace{-6mu} 3 x_{1} \mspace{-6mu}&\color{red}\mspace{-6mu} - \mspace{-6mu}&\color{red}\mspace{-6mu} x_{2}\\
+            \hline
+            z \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 0 \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\color{green}\mspace{-6mu} 10 x_{1} \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} 5 x_{2}\\
+            \hline
+            \\
+            \hline
+            x_{3} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 500 \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{2}{3} x_{2}\\
+            x_{1} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 500 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{2}\\
+            \hline
+            z \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 5000 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{10}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} \frac{5}{3} x_{2}\\
+            \hline
+            \end{array}
+
+        This is how the above output looks when rendered:
+
+        .. MATH::
+
+            \renewcommand{\arraystretch}{1.5}
+            \begin{array}{|rcrcrcr|}
+            \hline
+            x_{3} \!\!\!&\!\!\! = \!\!\!&\!\!\! 1000 \!\!\!&\!\!\! - \!\!\!&\color{green}{\!\!\!  x_{1} \!\!\!}&\!\!\! - \!\!\!&\!\!\!  x_{2}\\
+            \color{red}{x_{4} \!\!\!}&\color{red}{\!\!\! = \!\!\!}&\color{red}{\!\!\! 1500 \!\!\!}&\color{red}{\!\!\! - \!\!\!}&\color{blue}{{\!\!\! 3 x_{1} \!\!\!}}&\color{red}{\!\!\! - \!\!\!}&\color{red}{\!\!\!  x_{2}}\\
+            \hline
+            z \!\!\!&\!\!\! = \!\!\!&\!\!\! 0 \!\!\!&\!\!\! + \!\!\!&\color{green}{\!\!\! 10 x_{1} \!\!\!}&\!\!\! + \!\!\!&\!\!\! 5 x_{2}\\
+            \hline
+            \\
+            \hline
+            x_{3} \!\!\!&\!\!\! = \!\!\!&\!\!\! 500 \!\!\!&\!\!\! + \!\!\!&\!\!\! \frac{1}{3} x_{4} \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{2}{3} x_{2}\\
+            x_{1} \!\!\!&\!\!\! = \!\!\!&\!\!\! 500 \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{1}{3} x_{4} \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{1}{3} x_{2}\\
+            \hline
+            z \!\!\!&\!\!\! = \!\!\!&\!\!\! 5000 \!\!\!&\!\!\! - \!\!\!&\!\!\! \frac{10}{3} x_{4} \!\!\!&\!\!\! + \!\!\!&\!\!\! \frac{5}{3} x_{2}\\
+            \hline
+            \end{array}
+
+        The column of the entering variable is green, while the row of the
+        leaving variable is red in the original dictionary state on the top.
+        The new state after the update step is shown on the bottom.
+        """
+        self.enter(entering)
+        self.leave(leaving)
+        result = latex(self).rsplit("\n", 1)[0] # Remove \end{array}
+        # Make an empty line in the array
+        if generate_real_LaTeX:
+            result += "\n" r"\multicolumn{2}{c}{}\\[-3ex]" "\n"
+        else:
+            result += "\n\\\\\n"
+        self.update()
+        result += latex(self).split("\n", 2)[2] # Remove array header
+        return LatexExpr(result)
+
     def enter(self, v):
         r"""
         Set ``v`` as the entering variable of ``self``.
@@ -3089,82 +3165,6 @@ class LPDictionary(LPAbstractDictionary):
             line = line.replace(r"\color{red}\color{green}", r"\color{blue}")
             lines[l] = line
         return  "\n".join(lines)
-
-    def ELLUL(self, entering, leaving):
-        r"""
-        Perform the Enter-Leave-LaTeX-Update-LaTeX step sequence on ``self``.
-
-        INPUT:
-
-        - ``entering`` -- the entering variable
-
-        - ``leaving`` -- the leaving variable
-
-        OUTPUT:
-
-        - a string with LaTeX code for ``self`` before and after update
-
-        EXAMPLES::
-
-            sage: A = ([1, 1], [3, 1])
-            sage: b = (1000, 1500)
-            sage: c = (10, 5)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: D = P.initial_dictionary()
-            sage: D.ELLUL("x1", "x4")
-            \renewcommand{\arraystretch}{1.5}
-            \begin{array}{|rcrcrcr|}
-            \hline
-            x_{3} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 1000 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\color{green}\mspace{-6mu} x_{1} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} x_{2}\\
-            \color{red}x_{4} \mspace{-6mu}&\color{red}\mspace{-6mu} = \mspace{-6mu}&\color{red}\mspace{-6mu} 1500 \mspace{-6mu}&\color{red}\mspace{-6mu} - \mspace{-6mu}&\color{blue}\mspace{-6mu} 3 x_{1} \mspace{-6mu}&\color{red}\mspace{-6mu} - \mspace{-6mu}&\color{red}\mspace{-6mu} x_{2}\\
-            \hline
-            z \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 0 \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\color{green}\mspace{-6mu} 10 x_{1} \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} 5 x_{2}\\
-            \hline
-            \\
-            \hline
-            x_{3} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 500 \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{2}{3} x_{2}\\
-            x_{1} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 500 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{2}\\
-            \hline
-            z \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 5000 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{10}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} \frac{5}{3} x_{2}\\
-            \hline
-            \end{array}
-
-        This is how the above output looks when rendered:
-
-        .. MATH::
-
-            \renewcommand{\arraystretch}{1.5}
-            \begin{array}{|rcrcrcr|}
-            \hline
-            x_{3} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 1000 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\color{green}\mspace{-6mu} x_{1} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} x_{2}\\
-            \color{red}x_{4} \mspace{-6mu}&\color{red}\mspace{-6mu} = \mspace{-6mu}&\color{red}\mspace{-6mu} 1500 \mspace{-6mu}&\color{red}\mspace{-6mu} - \mspace{-6mu}&\color{blue}\mspace{-6mu} 3 x_{1} \mspace{-6mu}&\color{red}\mspace{-6mu} - \mspace{-6mu}&\color{red}\mspace{-6mu} x_{2}\\
-            \hline
-            z \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 0 \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\color{green}\mspace{-6mu} 10 x_{1} \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} 5 x_{2}\\
-            \hline
-            \\
-            \hline
-            x_{3} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 500 \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{2}{3} x_{2}\\
-            x_{1} \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 500 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{1}{3} x_{2}\\
-            \hline
-            z \mspace{-6mu}&\mspace{-6mu} = \mspace{-6mu}&\mspace{-6mu} 5000 \mspace{-6mu}&\mspace{-6mu} - \mspace{-6mu}&\mspace{-6mu} \frac{10}{3} x_{4} \mspace{-6mu}&\mspace{-6mu} + \mspace{-6mu}&\mspace{-6mu} \frac{5}{3} x_{2}\\
-            \hline
-            \end{array}
-
-        The column of the entering variable is green, while the row of the
-        leaving variable is red in the original dictionary state on the top.
-        The new state after the update step is shown on the bottom.
-        """
-        self.enter(entering)
-        self.leave(leaving)
-        result = latex(self).rsplit("\n", 1)[0] # Remove \end{array}
-        # Make an empty line in the array
-        if generate_real_LaTeX:
-            result += "\n" r"\multicolumn{2}{c}{}\\[-3ex]" "\n"
-        else:
-            result += "\n\\\\\n"
-        self.update()
-        result += latex(self).split("\n", 2)[2] # Remove array header
-        return LatexExpr(result)
 
     def basic_variables(self):
         r"""

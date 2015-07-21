@@ -195,7 +195,7 @@ from sage.misc.all import (LatexExpr,
 from sage.misc.latex import EMBEDDED_MODE
 from sage.misc.misc import get_main_globals
 from sage.modules.all import random_vector, vector
-from sage.plot.all import Graphics, arrow, line, point, rainbow, text
+from sage.plot.all import Graphics, arrow, line, point, rainbow, text, colors
 from sage.rings.all import Infinity, PolynomialRing, QQ, RDF, ZZ
 from sage.structure.all import SageObject
 from sage.symbolic.all import SR
@@ -652,13 +652,13 @@ class InteractiveLPProblem(SageObject):
         #tricks from integer slack variables
         #example 1, x <= 5 where the slack variable is integer
         if self._integer_variables.intersection(set(x)) != set(x):
-		    for i in range (m):
-		    	if slack_variables[i] in self._integer_variables and b[i].is_integer():
-		    		for j in range (self.n()):
-		    			copy_Ai = copy(list(A[i]))
-		    			copy_Ai.remove(copy_Ai[j])
-		    			if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
-		    				self._integer_variables.add(x[j])
+            for i in range (m):
+                if slack_variables[i] in self._integer_variables and b[i].is_integer():
+                    for j in range (self.n()):
+                        copy_Ai = copy(list(A[i]))
+                        copy_Ai.remove(copy_Ai[j])
+                        if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
+                            self._integer_variables.add(x[j])
 
     def __eq__(self, other):
         r"""
@@ -1696,7 +1696,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             self._integer_variables = set([])
             for v in integer_variables:
                 self._integer_variables.add(variable(R, v))
-    	#if there is no assigned integer slack variables by the user
+        #if there is no assigned integer slack variables by the user
         # use sufficient conditions to assign slack variables to be integer        
         if not self._integer_variables.intersection(set(self.slack_variables())): 
             if integer_variables:
@@ -1707,16 +1707,14 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         #tricks from integer slack variables
         #example 1, x <= 5 where the slack variable is integer
         if self._integer_variables.intersection(set(x)) != set(x):
-		    for i in range (self.m()):
-		    	if self.slack_variables()[i] in self._integer_variables and b[i].is_integer():
-		    		for j in range (self.n()):
-		    			copy_Ai = copy(list(A[i]))
-		    			copy_Ai.remove(copy_Ai[j])
-		    			if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
-		    				self._integer_variables.add(x[j])
-		    		
-
-
+            for i in range (self.m()):
+                if self.slack_variables()[i] in self._integer_variables and b[i].is_integer():
+                    for j in range (self.n()):
+                        copy_Ai = copy(list(A[i]))
+                        copy_Ai.remove(copy_Ai[j])
+                        if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
+                            self._integer_variables.add(x[j])
+                    
 
     def auxiliary_problem(self, objective_variable=None):
         r"""
@@ -3227,10 +3225,15 @@ class LPAbstractDictionary(SageObject):
         """
         raise NotImplementedError 
 
-    def run_cutting_plane_algorithm(self):
+    def run_cutting_plane_algorithm(self, plot_cuts=False):
         r"""
 
         Perform the cutting plane method to solve a ILP problem.
+
+        INPUT: 
+
+        -``plot_cuts`` -- (default:False) a boolean value to decide whether
+        plot the cuts or not
 
         OUTPUT:
 
@@ -3245,7 +3248,7 @@ class LPAbstractDictionary(SageObject):
             sage: P = InteractiveLPProblemStandardForm(A, b, c, 
             ....: integer_variables={'x3','x4'})
             sage: D = P.final_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
             sage: number_of_cuts
             6
             sage: A = ([-8, 1], [8, 1])
@@ -3254,13 +3257,13 @@ class LPAbstractDictionary(SageObject):
             sage: P = InteractiveLPProblemStandardForm(A, b, c,
             ....: integer_variables={'x3','x4'})
             sage: D = P.final_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
             sage: number_of_cuts
             9
             sage: P1 = InteractiveLPProblemStandardForm(A, b, c,
             ....: integer_variables={'x3','x4'})
             sage: D = P1.final_revised_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
             sage: number_of_cuts
             9
             
@@ -3268,13 +3271,63 @@ class LPAbstractDictionary(SageObject):
         """
         d = self
         number_of_cuts = 0
-        while True:
-            d.add_a_cut()
-            d.run_dual_simplex_method()
-            b = d.constant_terms()
-            number_of_cuts += 1
-            if all(i.is_integer() for i in b):
-                break
+        if not plot_cuts:
+            while True:
+                d.add_a_cut()
+                d.run_dual_simplex_method()
+                b = d.constant_terms()
+                number_of_cuts += 1
+                if all(i.is_integer() for i in b):
+                    break
+        else:
+            if self._problem.n() != 2:
+                raise ValueError("only problems with 2 variables can be plotted")
+            A, b, c, x = self._problem.Abcx()
+            problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            result = Graphics()
+            result = result + problem.plot_feasible_set()
+
+            F = problem.feasible_set()
+            ymax = max(map(abs, b) + [v[1] for v in F.vertices()])
+            ymin = min([-ymax/4.0] + [v[1] for v in F.vertices()])
+            xmax = max([1.5*ymax] + [v[0] for v in F.vertices()])
+            xmin = min([-xmax/4.0] + [v[0] for v in F.vertices()])
+            xmin, xmax, ymin, ymax = map(QQ, [xmin, xmax, ymin, ymax])
+
+            while True:
+                number_of_cuts += 1
+                result = result + d.visualize_cut(xmax, xmin, ymax, ymin, number_of_cuts)
+                b = d.constant_terms()
+                if all(i.is_integer() for i in b):
+                    break
+
+            #the following lines are similar to the method plot(), but don't have the feasible region
+            c1 = self._problem.c().n().change_ring(QQ)
+            if c1.is_zero():
+                return F
+            start = self._problem.optimal_solution()
+            start = vector(QQ, start.n() if start is not None
+                                else [xmin + (xmax-xmin)/2, ymin + (ymax-ymin)/2])
+            length = min(xmax - xmin, ymax - ymin) / 5
+            end = start + (c1 * length / c.norm()).n().change_ring(QQ)
+            result += point(start, color="black", size=50, zorder=10)
+            result += arrow(start, end, color="black", zorder=10)
+            ieqs = [(xmax, -1, 0), (- xmin, 1, 0),
+                    (ymax, 0, -1), (- ymin, 0, 1)]
+            box = Polyhedron(ieqs=ieqs)
+            d = vector([c1[1], -c1[0]])
+            for i in range(-10, 11):
+                level = Polyhedron(vertices=[start + i*(end-start)], lines=[d])
+                level = box.intersection(level)
+                if level.vertices():
+                    if i == 0 and self._problem.is_bounded():
+                        result += line(level.vertices(), color="black",
+                                       thickness=2)
+                    else:
+                        result += line(level.vertices(), color="black",
+                                       linestyle="--")
+            result.show()
+
         return number_of_cuts
 
     def run_dual_simplex_method(self):
@@ -3693,7 +3746,7 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[1] = b
         self._AbcvBNz[4] = B2
         self._AbcvBNz[5] = N2
-        if integer_slack_variable==True:
+        if integer_slack_variable:
             self._integer_variables.add(variable(R, slack_variable))
 
     def basic_variables(self):
@@ -4418,7 +4471,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
         A = A.stack(new_row)
         b = vector(tuple(b) + (new_b,))
 
-        if integer_slack_variable==True:
+        if integer_slack_variable:
             self._integer_variables.add(variable(R, slack_variable))
         new_problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=self._integer_variables)
         self._problem = new_problem
@@ -4970,6 +5023,39 @@ class LPRevisedDictionary(LPAbstractDictionary):
         self._x_B[self._x_B.list().index(self._leaving)] = self._entering
         self._entering = None
         self._leaving = None
+
+    def visualize_cut(self, xmax, xmin, ymax, ymin, number_of_cuts):
+        r"""
+
+        Return the plot of the problem for the revised dictionary and the new cut
+
+        OUTPUT:
+
+        - a plot
+
+        """
+        self.add_a_cut()
+        self.run_dual_simplex_method()
+        problem = self._problem
+        m = problem.m()
+        A, b, c, x = problem.Abcx()
+        ieqs = [(xmax, -1, 0), (- xmin, 1, 0),
+            (ymax, 0, -1), (- ymin, 0, 1)]
+        box = Polyhedron(ieqs=ieqs)
+        bi = list(b)[m-1]
+        Ai = list(A.rows()[m-1])
+        ri = list(problem._constraint_types)[m-1]
+        eqns = [[-bi] + Ai]
+        cut = Polyhedron(eqns=eqns)
+        cut_line = cut.intersection(box)
+        vertices = cut_line.vertices_list()
+        label = "cut" + str(number_of_cuts)
+        label = label + " " + r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
+        result = line(vertices, color=list(colors)[number_of_cuts*2], 
+                        legend_label=label, thickness=1.5)
+        return result
+
+
 
     def y(self):
         r"""

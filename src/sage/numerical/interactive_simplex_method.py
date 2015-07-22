@@ -1375,38 +1375,40 @@ class InteractiveLPProblem(SageObject):
             ieqs = map(lambda ieq: map(QQ, ieq), ieqs)
             halfplane = box.intersection(Polyhedron(ieqs=ieqs))
 
-            #none of the problem variables are integer, therefore, a plane
+            #Case 1: None of the problem variables are integer
+            #therefore, plot a half-plane
+            #If any of the variable is an integer, 
+            #we will either plot integer grids or lines, but not a half-plane
             if not self._integer_variables.intersection(set(x)):
                 result += halfplane.render_solid(alpha=alpha, color=color)
 
-        #all problem variables are integer, therefore, integer grids
+        def plot_lines(F, result, xmin, xmax, integer_variable):
+            for i in range (xmin, xmax+1):
+                if integer_variable=="x":
+                    l = Polyhedron(eqns=[[-i, 1, 0]])
+                else:
+                    l = Polyhedron(eqns=[[-i, 0, 1]])
+                vertices = l.intersection(F).vertices()
+                if not vertices:
+                    continue
+                if l.intersection(F).n_vertices() == 2:
+                    result += line(vertices, color='blue', thickness=2)
+                else:
+                    result += point(l.intersection(F).vertices_list(), \
+                        color='blue', size=22)
+            return result 
+
+        #Case 2: all problem variables are integer
+        #therefore, plot integer grids
         if self._integer_variables.intersection(set(x)) == set(x):
             feasible_dot = F.integral_points()
             result += point(feasible_dot, color='blue', alpha=1, size=22)
-        #one of the problem variables is integer, therefore, lines
-        if x[0] in self._integer_variables and not x[1] in self._integer_variables:
-            for i in range (xmin, xmax+1):
-                x_line = Polyhedron(eqns=[[-i, 1, 0]])
-                vertices = x_line.intersection(F).vertices()
-                if not vertices:
-                    continue
-                if x_line.intersection(F).n_vertices() == 2:
-                    result += line(vertices, color='blue', thickness=2)
-                else:
-                    result += point(x_line.intersection(F).vertices_list(), 
-                        color='blue', size=22)
+        #Case 3: one of the problem variables is integer, the other is not
+        #therefore, plot lines
+        elif x[0] in self._integer_variables and not x[1] in self._integer_variables:
+            result = plot_lines(F, result, xmin, xmax, "x")
         elif x[1] in self._integer_variables and not x[0] in self._integer_variables:
-            for i in range (xmin, xmax+1):
-                y_line = Polyhedron(eqns=[[-i, 0, 1]])
-                vertices = y_line.intersection(F).vertices()
-                if not vertices:
-                    continue
-                if y_line.intersection(F).n_vertices() == 2:
-                    result += line(vertices, color='blue', thickness=2)
-                else:
-                    result += point(y_line.intersection(F).vertices_list(), 
-                        color='blue', size=22)
-                    
+            result = plot_lines(F, result, xmin, xmax, "y")   
 
         if F.vertices():
             result += F.render_solid(alpha=alpha, color="gray")

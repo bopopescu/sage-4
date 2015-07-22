@@ -1270,7 +1270,7 @@ class InteractiveLPProblem(SageObject):
         c = self.c().n().change_ring(QQ)
         if c.is_zero():
             return FP
-        return self.plot_objective_growth_and_solution(FP, c)
+        return self.plot_objective_growth_and_solution(FP, c, *args, **kwds)
 
     def plot_feasible_set(self, xmin=None, xmax=None, ymin=None, ymax=None,
                           alpha=0.2):
@@ -3304,7 +3304,7 @@ class LPAbstractDictionary(SageObject):
                 raise ValueError("only problems with 2 variables can be plotted")
             A, b, c, x = self._problem.Abcx()
             problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
-            FP = problem.plot_feasible_set()
+            FP = problem.plot_feasible_set(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
             result = Graphics()
 
             F = self._problem.feasible_set()

@@ -1076,6 +1076,30 @@ class InteractiveLPProblem(SageObject):
             eqns = [[R(_) for _ in eqn] for eqn in eqns]
         return Polyhedron(ieqs=ieqs, eqns=eqns, base_ring=R)
 
+    def get_plot_bounding_box(self, F, b, xmin=None, xmax=None, ymin=None, ymax=None):
+        r"""
+
+        Return the min and max for x and y of the bounding box for the plot
+
+        INPUT:
+
+        - ``F`` -- the feasible set of self
+        - ``b`` -- the constant terms of self
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+
+        """
+        if ymax is None:
+            ymax = max(map(abs, b) + [v[1] for v in F.vertices()])
+        if ymin is None:
+            ymin = min([-ymax/4.0] + [v[1] for v in F.vertices()])
+        if xmax is None:
+            xmax = max([1.5*ymax] + [v[0] for v in F.vertices()])
+        if xmin is None:
+            xmin = min([-xmax/4.0] + [v[0] for v in F.vertices()])
+        xmin, xmax, ymin, ymax = map(QQ, [xmin, xmax, ymin, ymax])
+        return xmin, xmax, ymin, ymax
+
     def is_bounded(self):
         r"""
         Check if ``self`` is bounded.
@@ -1362,15 +1386,8 @@ class InteractiveLPProblem(SageObject):
             A = A.n().change_ring(QQ)
             b = b.n().change_ring(QQ)
         F = self.feasible_set()
-        if ymax is None:
-            ymax = max(map(abs, b) + [v[1] for v in F.vertices()])
-        if ymin is None:
-            ymin = min([-ymax/4.0] + [v[1] for v in F.vertices()])
-        if xmax is None:
-            xmax = max([1.5*ymax] + [v[0] for v in F.vertices()])
-        if xmin is None:
-            xmin = min([-xmax/4.0] + [v[0] for v in F.vertices()])
-        xmin, xmax, ymin, ymax = map(QQ, [xmin, xmax, ymin, ymax])
+        xmin, xmax, ymin, ymax = self.get_plot_bounding_box(F, b,
+                                xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
         pad = max(xmax - xmin, ymax - ymin) / 20
         ieqs = [(xmax, -1, 0), (- xmin, 1, 0),
                 (ymax, 0, -1), (- ymin, 0, 1)]

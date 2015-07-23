@@ -2500,7 +2500,7 @@ class LPAbstractDictionary(SageObject):
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x3','x4'})
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
             sage: D.add_a_cut()
             sage: D.basic_variables()
@@ -2512,27 +2512,17 @@ class LPAbstractDictionary(SageObject):
             (33/10, 13/10, -3/10)
 
         add_a_cut refuses making a cut if the basic variable of the source row 
-        is set to be an integer from the problem, but it is not an integer in 
-        the dictionary
+        is not an integer
 
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, 
-            ....: integer_variables={'x1', 'x2', 'x3', 'x4'})
+            sage: b = (2/10, 17)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
             sage: D.integer_variables()
-            {x1, x2, x3, x4}
-            sage: D.basic_variables()
-            (x2, x1)
-            sage: D.constant_terms()
-            (33/10, 13/10)
-        
-        If the source row is related to x2, then the source row is ineligible, 
-        because x2 is 33/10 as a basic variable in the dictionary. The row related to
-        x1 is neither an eligible row for the same reason
-
-            sage: D.add_a_cut()
+            {x1, x2, x4}
+            sage: D.add_a_cut(basic_variable="x3")
             Traceback (most recent call last):
             ...
-            ValueError: there does not exist an eligible source row
+            ValueError: choosen variable should be an integer variable
 
 
         add_a_cut also refuses making a cut if a non-integer variable is 
@@ -2577,22 +2567,24 @@ class LPAbstractDictionary(SageObject):
         m = len(B)
         integer_variables = self.integer_variables()
 
-        def eligible_source_row(choose_variable, index):
+        def eligible_source_row(choose_variable):
             A_ith_row = self.row_coefficients(choose_variable)
             for i in range (n):
                 if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
                     return False
-            if choose_variable in integer_variables and not b[index].is_integer():
-                    return False
             return True
 
-        if all(i.is_integer() for i in b):
-            raise ValueError("the solution are all integer, there is no way to add a cut")
+        integer_basic_variables = integer_variables.intersection(set(B))
+        if all(b[list(B).index(variable)].is_integer() for variable in integer_basic_variables):
+            raise ValueError("the soulitons of the integer basic variables are all integer, \
+                there is no way to add a cut")
         if basic_variable != None:
             basic_variable = variable(self.coordinate_ring(), basic_variable)
+            if basic_variable not in integer_variables:
+                raise ValueError("choosen variable should be an integer variable")
             choose_variable = basic_variable
             index = list(B).index(choose_variable)
-            if not eligible_source_row(choose_variable, index):
+            if not eligible_source_row(choose_variable):
                 raise ValueError("this is not an eligible source row")
         else:
             fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
@@ -2600,7 +2592,7 @@ class LPAbstractDictionary(SageObject):
             while True:
                 index = fraction_list.index(min(fraction_list))
                 choose_variable = variable_list[index]
-                if eligible_source_row(choose_variable, index):
+                if eligible_source_row(choose_variable):
                     break
                 fraction_list.remove(min(fraction_list))
                 variable_list.remove(choose_variable)
@@ -3311,22 +3303,22 @@ class LPAbstractDictionary(SageObject):
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c, 
-            ....: integer_variables={'x3','x4'})
+            ....: integer_variables=True)
             sage: D = P.final_dictionary()
             sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
             sage: number_of_cuts
-            6
+            5
             sage: A = ([-8, 1], [8, 1])
             sage: b = (0, 8)
             sage: c = (-1/27, 1/31)
             sage: P = InteractiveLPProblemStandardForm(A, b, c,
-            ....: integer_variables={'x3','x4'})
+            ....: integer_variables=True)
             sage: D = P.final_dictionary()
             sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
             sage: number_of_cuts
             9
             sage: P1 = InteractiveLPProblemStandardForm(A, b, c,
-            ....: integer_variables={'x3','x4'})
+            ....: integer_variables=True)
             sage: D = P1.final_revised_dictionary()
             sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
             sage: number_of_cuts
@@ -3392,7 +3384,7 @@ class LPAbstractDictionary(SageObject):
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (4/7, 21/10)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x3','x4'})
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
             sage: D.add_a_cut()
             sage: print(D.run_dual_simplex_method()) # not tested

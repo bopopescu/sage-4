@@ -2561,21 +2561,26 @@ class LPAbstractDictionary(SageObject):
         """
 
         B = self.basic_variables()
+        list_B = list(B)
         N = self.nonbasic_variables()
         b = self.constant_terms()
         n = len(N)
         m = len(B)
         integer_variables = self.integer_variables()
 
-        def eligible_source_row(choose_variable):
+        def eligible_source_row(choose_variable, bi=None):
             A_ith_row = self.row_coefficients(choose_variable)
             for i in range (n):
                 if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
                     return False
+            #If the choose_variable is integer and its constant is also integer
+            #then there is no need for a cut
+            if choose_variable in integer_variables and bi and bi.is_integer():
+                return False
             return True
 
         integer_basic_variables = integer_variables.intersection(set(B))
-        if all(b[list(B).index(variable)].is_integer() for variable in integer_basic_variables):
+        if all(b[list_B.index(variable)].is_integer() for variable in integer_basic_variables):
             raise ValueError("the soulitons of the integer basic variables are all integer, \
                 there is no way to add a cut")
         if basic_variable != None:
@@ -2583,16 +2588,20 @@ class LPAbstractDictionary(SageObject):
             if basic_variable not in integer_variables:
                 raise ValueError("choosen variable should be an integer variable")
             choose_variable = basic_variable
-            index = list(B).index(choose_variable)
+            index = list_B.index(choose_variable)
             if not eligible_source_row(choose_variable):
                 raise ValueError("this is not an eligible source row")
         else:
             fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
-            variable_list = list(B)
+            variable_list = list_B
             while True:
-                index = fraction_list.index(min(fraction_list))
-                choose_variable = variable_list[index]
-                if eligible_source_row(choose_variable):
+                temp_index = fraction_list.index(min(fraction_list)) 
+                #temp index will change as long as we remove the variable of the
+                #ineglible source row from the fraction list and the variable lsit
+                choose_variable = variable_list[temp_index]
+                index = list_B.index(choose_variable)
+                #index wil not change, since we don't modify the list of basic variables
+                if eligible_source_row(choose_variable, b[index]):
                     break
                 fraction_list.remove(min(fraction_list))
                 variable_list.remove(choose_variable)

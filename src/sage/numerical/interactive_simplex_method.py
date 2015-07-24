@@ -1290,9 +1290,36 @@ class InteractiveLPProblem(SageObject):
         c = self.c().n().change_ring(QQ)
         if c.is_zero():
             return FP
+        if 'number_of_constraints' in kwds:
+             del kwds['number_of_constraints']
         return self.plot_objective_growth_and_solution(FP, c, *args, **kwds)
 
-    def plot_feasible_set(self, xmin=None, xmax=None, ymin=None, ymax=None,
+    def plot_contraint_or_cut(self, Ai, bi, ri, color, box, x, alpha, constraint=True, pad=None, number_of_cuts=None):
+            border = box.intersection(Polyhedron(eqns=[[-bi] + list(Ai)]))
+            vertices = border.vertices()
+            if not vertices:
+                return None
+            if constraint:
+                label = r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
+                result = line(vertices, color=color, legend_label=label)
+                if ri == "<=":
+                    ieqs = [[bi] + list(-Ai), [-bi+pad*Ai.norm().n()] + list(Ai)]
+                elif ri == ">=":
+                    ieqs = [[-bi] + list(Ai), [bi+pad*Ai.norm().n()] + list(-Ai)]
+                else:
+                    return None
+                ieqs = map(lambda ieq: map(QQ, ieq), ieqs)
+                halfplane = box.intersection(Polyhedron(ieqs=ieqs))
+                result += halfplane.render_solid(alpha=alpha, color=color)
+            else:
+                label = "cut" + str(number_of_cuts)
+                label = label + " " + r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
+                result = line(vertices, color=list(colors)[number_of_cuts*2], 
+                        legend_label=label, thickness=1.5)
+            return result
+
+    def plot_feasible_set(self, number_of_constraints=None,
+                          xmin=None, xmax=None, ymin=None, ymax=None,
                           alpha=0.2):
         r"""
         Return a plot of the feasible set of ``self``.
@@ -1336,7 +1363,7 @@ class InteractiveLPProblem(SageObject):
             A = A.n().change_ring(QQ)
             b = b.n().change_ring(QQ)
         F = self.feasible_set()
-        xmin, xmax, ymin, ymax = self.get_plot_bounding_box(F, b, xmin=xmin, xmax=xmax, \
+        xmin, xmax, ymin, ymax = self.get_plot_bounding_box(F, b, xmin=xmin, xmax=xmax, 
                                                         ymin=ymin, ymax=ymax)
         pad = max(xmax - xmin, ymax - ymin) / 20
         ieqs = [(xmax, -1, 0), (- xmin, 1, 0),
@@ -1345,25 +1372,26 @@ class InteractiveLPProblem(SageObject):
         F = box.intersection(F)
         result = Graphics()
         colors = rainbow(self.m() + 2)
-        for Ai, ri, bi, color in zip(A.rows(), self._constraint_types,
-                                           b, colors[:-2]):
-            border = box.intersection(Polyhedron(eqns=[[-bi] + list(Ai)]))
-            vertices = border.vertices()
-            if not vertices:
-                continue
-            label = r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
-            result += line(vertices, color=color, legend_label=label)
-            if ri == "<=":
-                ieqs = [[bi] + list(-Ai), [-bi+pad*Ai.norm().n()] + list(Ai)]
-            elif ri == ">=":
-                ieqs = [[-bi] + list(Ai), [bi+pad*Ai.norm().n()] + list(-Ai)]
-            else:
-                continue
-            ieqs = map(lambda ieq: map(QQ, ieq), ieqs)
-            halfplane = box.intersection(Polyhedron(ieqs=ieqs))
-            result += halfplane.render_solid(alpha=alpha, color=color)
-        # Same for variables, but no legend
+        number_of_ineqalities= self.m()
+        list_of_number = [int(i+1) for i in range (number_of_ineqalities)]
 
+        #plot the contraints or cuts one by one 
+        for i, Ai, ri, bi, color, in zip(list_of_number, A.rows(), self._constraint_types,
+                                    b, colors[:-2], ):
+            #contraints are the first number_of_ineqalities inequalities of the problem
+            if i <= number_of_constraints:
+                plot_contraint = self.plot_contraint_or_cut(Ai, bi, ri, color, box, x, 
+                                                            alpha, constraint=True, pad=pad)
+                if plot_contraint:
+                    result += plot_contraint
+            #cuts are the rest of the inequalities of the problem 
+            else: 
+                plot_cut = self.plot_contraint_or_cut(Ai, bi, ri, color, box, x, alpha, 
+                                    constraint=False, number_of_cuts=i-number_of_constraints)
+                if plot_cut:
+                    result += plot_cut
+
+        # Same for variables, but no legend
         integer_variables = self.integer_variables()
         for ni, ri, color in zip((QQ**2).gens(), self._variable_types,
                                  colors[-2:]):
@@ -1385,35 +1413,18 @@ class InteractiveLPProblem(SageObject):
             #we will either plot integer grids or lines, but not a half-plane
             if not integer_variables.intersection(set(x)):
                 result += halfplane.render_solid(alpha=alpha, color=color)
-
-        def plot_lines(F, result, xmin, xmax, integer_variable):
-            for i in range (xmin, xmax+1):
-                if integer_variable=="x":
-                    l = Polyhedron(eqns=[[-i, 1, 0]])
-                else:
-                    l = Polyhedron(eqns=[[-i, 0, 1]])
-                vertices = l.intersection(F).vertices()
-                if not vertices:
-                    continue
-                if l.intersection(F).n_vertices() == 2:
-                    result += line(vertices, color='blue', thickness=2)
-                else:
-                    result += point(l.intersection(F).vertices_list(), \
-                        color='blue', size=22)
-            return result 
-
+        
         #Case 2: all problem variables are integer
         #therefore, plot integer grids
-        
         if integer_variables.intersection(set(x)) == set(x):
             feasible_dot = F.integral_points()
             result += point(feasible_dot, color='blue', alpha=1, size=22)
         #Case 3: one of the problem variables is integer, the other is not
         #therefore, plot lines
         elif x[0] in integer_variables and not x[1] in integer_variables:
-            result = plot_lines(F, result, xmin, xmax, "x")
+            result += self.plot_lines(F, result, xmin, xmax, "x")
         elif x[1] in integer_variables and not x[0] in integer_variables:
-            result = plot_lines(F, result, xmin, xmax, "y")   
+            result += self.plot_lines(F, result, xmin, xmax, "y")   
 
         if F.vertices():
             result += F.render_solid(alpha=alpha, color="gray")
@@ -1427,6 +1438,22 @@ class InteractiveLPProblem(SageObject):
         result._extra_kwds["aspect_ratio"] = 1
         result.set_aspect_ratio(1)
         return result
+
+    def plot_lines(self, F, xmin, xmax, integer_variable):
+            for i in range (xmin, xmax+1):
+                if integer_variable=="x":
+                    l = Polyhedron(eqns=[[-i, 1, 0]])
+                else:
+                    l = Polyhedron(eqns=[[-i, 0, 1]])
+                vertices = l.intersection(F).vertices()
+                if not vertices:
+                    continue
+                if l.intersection(F).n_vertices() == 2:
+                    result = line(vertices, color='blue', thickness=2)
+                else:
+                    result = point(l.intersection(F).vertices_list(), \
+                        color='blue', size=22)
+            return result 
 
     def plot_objective_growth_and_solution(self, FP, c, 
                     xmin=None, xmax=None, ymin=None, ymax=None):

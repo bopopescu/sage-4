@@ -1069,6 +1069,13 @@ class InteractiveLPProblem(SageObject):
 
         Return the min and max for x and y of the bounding box for the plot
 
+        INPUT:
+
+        - ``F`` -- the feasible set of self
+        - ``b`` -- the constant terms of self
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+
         """
         if ymax is None:
             ymax = max(map(abs, b) + [v[1] for v in F.vertices()])
@@ -1296,32 +1303,54 @@ class InteractiveLPProblem(SageObject):
 
     def plot_constraint_or_cut(self, Ai, bi, ri, color, box, x, alpha, 
                                 pad=None, ith_cut=None):
-            border = box.intersection(Polyhedron(eqns=[[-bi] + list(Ai)]))
-            vertices = border.vertices()
-            if not vertices:
-                return None
-            result = Graphics()
-            if not ith_cut:
-                label = r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
-                result += line(vertices, color=color, legend_label=label)
-                if ri == "<=":
-                    ieqs = [[bi] + list(-Ai), [-bi+pad*Ai.norm().n()] + list(Ai)]
-                elif ri == ">=":
-                    ieqs = [[-bi] + list(Ai), [bi+pad*Ai.norm().n()] + list(-Ai)]
-                else:
-                    return None
-                ieqs = map(lambda ieq: map(QQ, ieq), ieqs)
-                halfplane = box.intersection(Polyhedron(ieqs=ieqs))
-                result += halfplane.render_solid(alpha=alpha, color=color)
-            else:
-                label = "cut" + str(ith_cut)
-                label = label + " " + r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
-                result += line(vertices, color=color, legend_label=label, thickness=1.5)
-            return result
+        r"""
 
-    def plot_feasible_set(self, number_of_cuts=0,
-                          xmin=None, xmax=None, ymin=None, ymax=None,
-                          alpha=0.2):
+        Return a plot of the constraint or cut of self
+
+
+
+        INPUT:
+
+        - ``Ai`` -- the coefficients for the constraint or cut
+        - ``bi`` -- the constant for the constraint or cut
+        - ``ri`` -- a string indicates the type for the constraint or cut
+        - ``color`` -- a color
+        - ``box`` -- a bounding box for the plot
+        - ``x`` -- the problem variables of the problem
+        - ``alpha`` -- determines how opaque are shadows
+        - ``pad`` -- an integer
+        - ``ith_cut`` -- an integer indiciates the order of the cut
+
+        OUTPUT:
+
+        - a plot
+
+        """
+        border = box.intersection(Polyhedron(eqns=[[-bi] + list(Ai)]))
+        vertices = border.vertices()
+        if not vertices:
+            return None
+        result = Graphics()
+        if not ith_cut:
+            label = r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
+            result += line(vertices, color=color, legend_label=label)
+            if ri == "<=":
+                ieqs = [[bi] + list(-Ai), [-bi+pad*Ai.norm().n()] + list(Ai)]
+            elif ri == ">=":
+                ieqs = [[-bi] + list(Ai), [bi+pad*Ai.norm().n()] + list(-Ai)]
+            else:
+                return None
+            ieqs = map(lambda ieq: map(QQ, ieq), ieqs)
+            halfplane = box.intersection(Polyhedron(ieqs=ieqs))
+            result += halfplane.render_solid(alpha=alpha, color=color)
+        else:
+            label = "cut" + str(ith_cut)
+            label = label + " " + r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
+            result += line(vertices, color=color, legend_label=label, thickness=1.5)
+        return result
+
+    def plot_feasible_set(self, xmin=None, xmax=None, ymin=None, ymax=None,
+                          alpha=0.2, number_of_cuts=0):
         r"""
         Return a plot of the feasible set of ``self``.
 
@@ -1412,6 +1441,21 @@ class InteractiveLPProblem(SageObject):
         return result
 
     def plot_lines(self, F, integer_variable):
+        r"""
+
+        Return the plot of lines (either vertical or horizontal) on an interval 
+
+        INPUT:
+
+        -``F`` -- the feasible set of self
+        -``integer_variable`` -- a string of name of a basic integer variable 
+        which indicates to plot vertical lines or horizontal lines
+
+        OUTPUT:
+
+        - a plot        
+
+        """
         b = self.b()
         xmin, xmax, ymin, ymax = self.get_plot_bounding_box(F, b, 
                             xmin=None, xmax=None, ymin=None, ymax=None)
@@ -1437,6 +1481,17 @@ class InteractiveLPProblem(SageObject):
 
         Return a plot with the growth of the objective function and the objective 
         solution. For more information, refer to the docstrings of the plot method.
+
+        INPUT:
+
+        - ``FP`` -- the plot of the feasbiel set of self
+        - ``c`` -- the objective value of self
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+
+        OUTPUT:
+
+        - a plot
 
         """
         b = self.b()
@@ -1468,6 +1523,23 @@ class InteractiveLPProblem(SageObject):
         return result
 
     def plot_variables(self, F, x, box, colors, pad, alpha):
+        r"""
+
+        Return a plot of the problem variables of self
+
+        INPUT:
+
+        - ``F`` -- the feasible set of self
+        - ``x`` -- the problem variables of self
+        - ``colors`` -- gives a list of color 
+        - ``pad`` -- a number determines by xmin, xmax, ymin, ymax in the plot method
+        - ``alpha`` -- determines how opaque are shadows
+
+        OUTPUT:
+
+        - a plot
+
+        """
         if self.n() != 2:
             raise ValueError("only problems with 2 variables can be plotted")
         result = Graphics()
@@ -2620,7 +2692,7 @@ class LPAbstractDictionary(SageObject):
                     return False
             #If the choose_variable is integer and its constant is also integer
             #then there is no need for a cut
-            if not choose_variable in integer_variables or bi and bi.is_integer():
+            if not choose_variable in integer_variables or (bi and bi.is_integer()):
                 return False
             return True
 
@@ -2629,9 +2701,9 @@ class LPAbstractDictionary(SageObject):
             raise ValueError("the solution of the integer basic variables are all integer, \
                 there is no way to add a cut")
         if basic_variable != None:
-            basic_variable = variable(self.coordinate_ring(), basic_variable)
-            choose_variable = basic_variable
-            index = list_B.index(choose_variable)
+            choose_variable= variable(self.coordinate_ring(), basic_variable)
+            if choose_variable not in integer_variables:
+                raise ValueError("chosen variable should be an integer variable")
             if not eligible_source_row(choose_variable, bi=None):
                 raise ValueError("this is not an eligible source row")
         else:
@@ -3339,6 +3411,10 @@ class LPAbstractDictionary(SageObject):
 
         Perform the cutting plane method to solve a ILP problem.
 
+        The problem variables may not be the same as the nonbasic
+        variables of the dictionary. To see the plot based on the original
+        variables, one had better choose self to be a LPRevisedDictionary 
+        object rather than a LPDictionary object.
         INPUT: 
 
         -``plot_cuts`` -- (default:False) a boolean value to decide whether
@@ -3387,7 +3463,7 @@ class LPAbstractDictionary(SageObject):
             if all(i.is_integer() for i in b):
                 break
         if plot_cuts:
-            result = self.plot_problem(number_of_cuts=number_of_cuts)
+            result = self.plot(number_of_cuts=number_of_cuts)
             result.show()
         return number_of_cuts
 
@@ -3955,6 +4031,36 @@ class LPDictionary(LPAbstractDictionary):
             'z'
         """
         return self._objective_variable  
+
+    def plot(self, number_of_cuts=0):
+        r"""
+
+        Return a plot of the problem of self
+
+        The problem variables may not be the same as the nonbasic
+        variables of the dictionary. Therefore, the plot may not be showed 
+        correct information for the original problem
+
+        INPUT:
+
+        -``number_of_cuts'' -- an integer indicates the number of the cuts 
+        made on the original problem
+
+        OUTPUT:
+
+        - a plot
+
+        """
+
+        B = self.basic_variables()
+        A = tuple([self.row_coefficients(B[i]) for i in range (len(B))])
+        A = matrix(self.base_ring(), A)
+        b = self.constant_terms()
+        c = self.objective_coefficients()
+        #Make a temporary problem based on the data of the dictioanry
+        P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+        return P.plot(number_of_cuts=number_of_cuts)
+
 
     def row_coefficients(self, v):
         r"""
@@ -4997,10 +5103,15 @@ class LPRevisedDictionary(LPAbstractDictionary):
         """
         return self.y() * self.problem().b()
 
-    def plot_problem(self, number_of_cuts=0):
+    def plot(self, number_of_cuts=0):
         r"""
 
         Return the plot of the problem of self
+
+        INPUT:
+
+        -``number_of_cuts'' -- an integer indicates the number of the cuts 
+        made on the original problem
 
         """
         return self.problem().plot(number_of_cuts=number_of_cuts)

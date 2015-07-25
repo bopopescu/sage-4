@@ -2567,7 +2567,7 @@ class LPAbstractDictionary(SageObject):
             sage: D.add_a_cut(basic_variable="x3")
             Traceback (most recent call last):
             ...
-            ValueError: choosen variable should be an integer variable
+            ValueError: chosen variable should be an integer variable
 
 
         add_a_cut also refuses making a cut if a non-integer variable is 
@@ -2620,25 +2620,23 @@ class LPAbstractDictionary(SageObject):
                     return False
             #If the choose_variable is integer and its constant is also integer
             #then there is no need for a cut
-            if choose_variable in integer_variables and bi and bi.is_integer():
+            if not choose_variable in integer_variables or bi and bi.is_integer():
                 return False
             return True
 
         integer_basic_variables = integer_variables.intersection(set(B))
         if all(b[list_B.index(variable)].is_integer() for variable in integer_basic_variables):
-            raise ValueError("the soulitons of the integer basic variables are all integer, \
+            raise ValueError("the solution of the integer basic variables are all integer, \
                 there is no way to add a cut")
         if basic_variable != None:
             basic_variable = variable(self.coordinate_ring(), basic_variable)
-            if basic_variable not in integer_variables:
-                raise ValueError("choosen variable should be an integer variable")
             choose_variable = basic_variable
             index = list_B.index(choose_variable)
-            if not eligible_source_row(choose_variable):
+            if not eligible_source_row(choose_variable, bi=None):
                 raise ValueError("this is not an eligible source row")
         else:
             fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
-            variable_list = list_B
+            variable_list = copy(list_B)
             while True:
                 temp_index = fraction_list.index(min(fraction_list)) 
                 #temp index will change as long as we remove the variable of the
@@ -2669,7 +2667,7 @@ class LPAbstractDictionary(SageObject):
 
         cut_constant = b[index].floor() - b[index]
         
-        self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable, \
+        self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable, 
                     integer_slack_variable=True)
 
     def add_row(self):
@@ -3380,43 +3378,17 @@ class LPAbstractDictionary(SageObject):
             
 
         """
-        d = self
         number_of_cuts = 0
-        if not plot_cuts:
-            while True:
-                d.add_a_cut()
-                d.run_dual_simplex_method()
-                b = d.constant_terms()
-                number_of_cuts += 1
-                if all(i.is_integer() for i in b):
-                    break
-        else:
-            if self._problem.n() != 2:
-                raise ValueError("only problems with 2 variables can be plotted")
-            A, b, c, x = self._problem.Abcx()
-            problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
-            FP = problem.plot_feasible_set(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-            result = Graphics()
-
-            F = self._problem.feasible_set()
-            xmin, xmax, ymin, ymax = self._problem.get_plot_bounding_box(F, b, 
-                                        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
-
-            while True:
-                number_of_cuts += 1
-                result = result + d.visualize_cut(xmax, xmin, ymax, ymin, number_of_cuts)
-                b = d.constant_terms()
-                if all(i.is_integer() for i in b):
-                    break
-
-            #the following lines are similar to the method plot(), but don't have the feasible region
-            c1 = self._problem.c().n().change_ring(QQ)
-            if c1.is_zero():
-                return F
-            result += self._problem.plot_objective_growth_and_solution(FP, c1, 
-                        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+        while True:
+            self.add_a_cut()
+            self.run_dual_simplex_method()
+            b = self.constant_terms()
+            number_of_cuts += 1
+            if all(i.is_integer() for i in b):
+                break
+        if plot_cuts:
+            result = self.plot_problem(number_of_cuts=number_of_cuts)
             result.show()
-
         return number_of_cuts
 
     def run_dual_simplex_method(self):
@@ -4556,10 +4528,8 @@ class LPRevisedDictionary(LPAbstractDictionary):
                 d_index += 1
             slack_index += 1
 
-
         A = A.stack(new_row)
         b = vector(tuple(b) + (new_b,))
-
         if integer_slack_variable:
             self._integer_variables.add(variable(R, slack_variable))
         new_problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=self.integer_variables())
@@ -5026,6 +4996,14 @@ class LPRevisedDictionary(LPAbstractDictionary):
             0
         """
         return self.y() * self.problem().b()
+
+    def plot_problem(self, number_of_cuts=0):
+        r"""
+
+        Return the plot of the problem of self
+
+        """
+        return self.problem().plot(number_of_cuts=number_of_cuts)
 
     def problem(self):
         r"""

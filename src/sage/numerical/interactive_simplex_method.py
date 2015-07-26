@@ -2591,7 +2591,8 @@ class LPAbstractDictionary(SageObject):
         """
         return "LP problem dictionary (use typeset mode to see details)"
 
-    def add_a_cut(self, basic_variable=None, new_slack_variable=None):
+    def add_a_cut(self, cut_generating_function_separator=None, 
+                basic_variable=None, new_slack_variable=None):
         r"""
 
         Update the dictionary by adding a Gomory fractional cut
@@ -2731,16 +2732,14 @@ class LPAbstractDictionary(SageObject):
             cut_index = m + n + 1
             add_slack_variable = SR("x" + str(cut_index))
 
-        A_ith_row = self.row_coefficients(choose_variable)
-
-        cut_coefficients = [ A_ith_row[i].floor() - 
-                                      A_ith_row[i] for i in range (n)]
-
-        cut_constant = b[index].floor() - b[index]
+        if cut_generating_function_separator == "gomory_mixed_integer":
+            cut_coefficients, cut_constant = self.make_Gomory_mixed_integer_cut(choose_variable, index)
+        elif cut_generating_function_separator == "gomory_fractional":
+            cut_coefficients, cut_constant = self.make_Gomory_fractional_cut(choose_variable, index)
         
         self.add_row(cut_coefficients, cut_constant, add_slack_variable, 
                     integer_slack_variable=True)
-
+    
     def add_row(self):
         r"""
         Update a dictionary with an additional row based on a given dictionary, the index of
@@ -3206,7 +3205,65 @@ class LPAbstractDictionary(SageObject):
                              "its coefficients")
         return self.row_coefficients(self._leaving)
 
+    def make_Gomory_fractional_cut(self, choose_variable, index):
+        b = self.constant_terms()
+        n = len(self.nonbasic_variables())
+        A_ith_row = self.row_coefficients(choose_variable)
+        cut_coefficients = [ A_ith_row[i].floor() - 
+                                      A_ith_row[i] for i in range (n)]
+        cut_constant = b[index].floor() - b[index]
+        return cut_coefficients, cut_constant
+            
+    def make_Gomory_mixed_integer_cut(self, choose_variable, index):
+        B = self.basic_variables()
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        I = self.integer_variables()
+        all_variables = list(B) + list(N) 
+        C = set(all_variables).difference(I)
+        n = len(N)
         
+        A_ith_row = self.row_coefficients(choose_variable)
+        f = [ A_ith_row[i] - A_ith_row[i].floor() for i in range (n)]
+        f_0 = b[index] - b[index].floor()
+
+        #make dictionaries to update f and the ith row of matrix A 
+        #with the right orders 
+        #first in integer variables, then in continuous variables
+        variables = list(I) + list(C)
+        set_N = set(N)
+        N_in_IC_oder = [item for item in variables if item in set_N]
+        set_N_in_IC_oder = set(N_in_IC_oder)
+        f_dic = {item: coef for item, coef in zip(N, f)}
+        new_f = [f_dic[item] for item in set_N_in_IC_oder]
+        A_ith_row_dic = {item: coef for item, coef in zip(N, A_ith_row)}
+        new_A_ith_row = [A_ith_row_dic[item] for item in set_N_in_IC_oder]
+
+        cut_coefficients = [0] * n
+        j = 0
+        for item in I:
+            if item in set_N:
+                f_j = new_f[j]
+                if f_j <= f_0:
+                    cut_coefficients[j] -=  f_j / f_0
+                else:
+                    cut_coefficients[j] -= (1 - f_j) / (1 - f_0)
+                j += 1
+        for item in C: 
+            if item in set_N:
+                a_j = new_A_ith_row[j] 
+                if a_j >= 0:  
+                    cut_coefficients[j] -= a_j / f_0
+                else:
+                    cut_coefficients[j] -= a_j / (1 - f_0)
+                j += 1
+        cut_constant = -1
+
+        #update cut_coefficients in the original order in self._nonbasic_variable
+        cut_coef_dic = {item: coef for item, coef in zip(N_in_IC_oder, cut_coefficients)}
+        new_cut_coefficients = [cut_coef_dic[item] for item in list(N) if item in set_N_in_IC_oder]
+
+        return new_cut_coefficients, cut_constant        
 
     def possible_dual_simplex_method_steps(self):
         r"""

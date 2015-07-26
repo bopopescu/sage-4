@@ -484,7 +484,7 @@ class InteractiveLPProblem(SageObject):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
-    - ``integer_variables`` -- (default: False) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -1313,13 +1313,13 @@ class InteractiveLPProblem(SageObject):
 
         - ``Ai`` -- the coefficients for the constraint or cut
         - ``bi`` -- the constant for the constraint or cut
-        - ``ri`` -- a string indicates the type for the constraint or cut
+        - ``ri`` -- a string indicating the type for the constraint or cut
         - ``color`` -- a color
         - ``box`` -- a bounding box for the plot
         - ``x`` -- the problem variables of the problem
         - ``alpha`` -- determines how opaque are shadows
         - ``pad`` -- an integer
-        - ``ith_cut`` -- an integer indiciates the order of the cut
+        - ``ith_cut`` -- an integer indicating the order of the cut
 
         OUTPUT:
 
@@ -1449,7 +1449,7 @@ class InteractiveLPProblem(SageObject):
 
         -``F`` -- the feasible set of self
         -``integer_variable`` -- a string of name of a basic integer variable 
-        which indicates to plot vertical lines or horizontal lines
+        indicating to plot vertical lines or horizontal lines
 
         OUTPUT:
 
@@ -1532,7 +1532,7 @@ class InteractiveLPProblem(SageObject):
         - ``F`` -- the feasible set of self
         - ``x`` -- the problem variables of self
         - ``colors`` -- gives a list of color 
-        - ``pad`` -- a number determines by xmin, xmax, ymin, ymax in the plot method
+        - ``pad`` -- a number determined by xmin, xmax, ymin, ymax in the plot method
         - ``alpha`` -- determines how opaque are shadows
 
         OUTPUT:
@@ -1729,7 +1729,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
-    - ``integer_variables`` -- (default: False) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -2341,8 +2341,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
 
             - an optimal dictionary with the :meth:`auxiliary_variable` among
               :meth:`~LPRevisedDictionary.basic_variables` and a non-zero
-              optimal value indicating
-              that ``self`` is infeasible;
+              optimal value indicating that ``self`` is infeasible;
 
             - a non-optimal dictionary that has marked entering
               variable for which there is no choice of the leaving variable,
@@ -2692,7 +2691,7 @@ class LPAbstractDictionary(SageObject):
                     return False
             #If the choose_variable is integer and its constant is also integer
             #then there is no need for a cut
-            if not choose_variable in integer_variables or (bi and bi.is_integer()):
+            if not choose_variable in integer_variables or (bi is not None and bi.is_integer()):
                 return False
             return True
 
@@ -2734,12 +2733,12 @@ class LPAbstractDictionary(SageObject):
 
         A_ith_row = self.row_coefficients(choose_variable)
 
-        cut_nonbasic_coefficients = [ A_ith_row[i].floor() - 
+        cut_coefficients = [ A_ith_row[i].floor() - 
                                       A_ith_row[i] for i in range (n)]
 
         cut_constant = b[index].floor() - b[index]
         
-        self.add_row(cut_nonbasic_coefficients, cut_constant, add_slack_variable, 
+        self.add_row(cut_coefficients, cut_constant, add_slack_variable, 
                     integer_slack_variable=True)
 
     def add_row(self):
@@ -3624,7 +3623,7 @@ class LPDictionary(LPAbstractDictionary):
       is None or "vanderbei". Otherwise, the objective variable will use the 
       default according to the style.  
 
-    - ``integer_variables`` -- (default: False) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -3831,8 +3830,8 @@ class LPDictionary(LPAbstractDictionary):
         -``nonbasic_coefficients``-- a list of the coefficients for the new row
         -``constant``-- a number of the constant term for the new row
         -``slack_variable``-- a string of the name for the new slack variable
-        -``integer_slack_variable``-- (default: False) a boolean value indicates if the new slack
-          variable is integer or not.  
+        -``integer_slack_variable``-- (default: False) a boolean value indicating if the new 
+        slack variable is integer or not.  
 
         OUTPUT:
 
@@ -4043,7 +4042,7 @@ class LPDictionary(LPAbstractDictionary):
 
         INPUT:
 
-        -``number_of_cuts'' -- an integer indicates the number of the cuts 
+        -``number_of_cuts'' -- an integer indicating the number of the cuts 
         made on the original problem
 
         OUTPUT:
@@ -4217,7 +4216,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
     - ``objective_variable`` -- (default: depends on ``style``) 
       a string giving the objective variable name. 
 
-    - ``integer_variables`` -- (default: False) either a boolean value indicates
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving 
       some problem variables' names, where those problem variables are integer.
 
@@ -4534,7 +4533,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
         -``nonbasic_coefficients``-- a list of the coefficients for the new row
         -``constant``-- a number of the constant term for the new row
         -``slack_variable``-- a string of the name for the new slack variable
-        -``integer_slack_variable``-- (default: False) a boolean value indicates if the new slack
+        -``integer_slack_variable``-- (default: False) a boolean value indicating if the new slack
           variable is integer or not.  
 
         OUTPUT:
@@ -5110,7 +5109,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         INPUT:
 
-        -``number_of_cuts'' -- an integer indicates the number of the cuts 
+        -``number_of_cuts'' -- an integer indicating the number of the cuts 
         made on the original problem
 
         """

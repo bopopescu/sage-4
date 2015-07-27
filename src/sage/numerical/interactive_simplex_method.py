@@ -2676,52 +2676,14 @@ class LPAbstractDictionary(SageObject):
             ValueError: there does not exist an eligible source row
             
         """
+        choose_variable, index= self.pick_eligible_source_row(basic_variable=basic_variable)
 
-        B = self.basic_variables()
-        list_B = list(B)
-        N = self.nonbasic_variables()
-        b = self.constant_terms()
-        n = len(N)
-        m = len(B)
-        integer_variables = self.integer_variables()
-
-        def eligible_source_row(choose_variable, bi=None):
-            A_ith_row = self.row_coefficients(choose_variable)
-            for i in range (n):
-                if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
-                    return False
-            #If the choose_variable is integer and its constant is also integer
-            #then there is no need for a cut
-            if not choose_variable in integer_variables or (bi is not None and bi.is_integer()):
-                return False
-            return True
-
-        integer_basic_variables = integer_variables.intersection(set(B))
-        if all(b[list_B.index(variable)].is_integer() for variable in integer_basic_variables):
-            raise ValueError("the solution of the integer basic variables are all integer, \
-                there is no way to add a cut")
-        if basic_variable != None:
-            choose_variable= variable(self.coordinate_ring(), basic_variable)
-            if choose_variable not in integer_variables:
-                raise ValueError("chosen variable should be an integer variable")
-            if not eligible_source_row(choose_variable, bi=None):
-                raise ValueError("this is not an eligible source row")
-        else:
-            fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
-            variable_list = copy(list_B)
-            while True:
-                temp_index = fraction_list.index(min(fraction_list)) 
-                #temp index will change as long as we remove the variable of the
-                #ineglible source row from the fraction list and the variable lsit
-                choose_variable = variable_list[temp_index]
-                index = list_B.index(choose_variable)
-                #index wil not change, since we don't modify the list of basic variables
-                if eligible_source_row(choose_variable, b[index]):
-                    break
-                fraction_list.remove(min(fraction_list))
-                variable_list.remove(choose_variable)
-                if not fraction_list:
-                    raise ValueError("there does not exist an eligible source row")
+        if cut_generating_function_separator == "gomory_mixed_integer":
+            cut_coefficients, cut_constant = self.make_Gomory_mixed_integer_cut(choose_variable, index)
+            integer_slack_variable = False
+        elif cut_generating_function_separator == "gomory_fractional":
+            cut_coefficients, cut_constant = self.make_Gomory_fractional_cut(choose_variable, index)
+            integer_slack_variable = True
 
         if new_slack_variable != None:
             if not isinstance(new_slack_variable, str):
@@ -2729,16 +2691,11 @@ class LPAbstractDictionary(SageObject):
             else:
                 add_slack_variable = new_slack_variable
         else:
-            cut_index = m + n + 1
+            cut_index = len(self.nonbasic_variables()) + len(self.basic_variables()) + 1
             add_slack_variable = SR("x" + str(cut_index))
-
-        if cut_generating_function_separator == "gomory_mixed_integer":
-            cut_coefficients, cut_constant = self.make_Gomory_mixed_integer_cut(choose_variable, index)
-        elif cut_generating_function_separator == "gomory_fractional":
-            cut_coefficients, cut_constant = self.make_Gomory_fractional_cut(choose_variable, index)
         
         self.add_row(cut_coefficients, cut_constant, add_slack_variable, 
-                    integer_slack_variable=True)
+                    integer_slack_variable=integer_slack_variable)
     
     def add_row(self):
         r"""
@@ -3233,11 +3190,10 @@ class LPAbstractDictionary(SageObject):
         variables = list(I) + list(C)
         set_N = set(N)
         N_in_IC_oder = [item for item in variables if item in set_N]
-        set_N_in_IC_oder = set(N_in_IC_oder)
         f_dic = {item: coef for item, coef in zip(N, f)}
-        new_f = [f_dic[item] for item in set_N_in_IC_oder]
+        new_f = [f_dic[item] for item in N_in_IC_oder]
         A_ith_row_dic = {item: coef for item, coef in zip(N, A_ith_row)}
-        new_A_ith_row = [A_ith_row_dic[item] for item in set_N_in_IC_oder]
+        new_A_ith_row = [A_ith_row_dic[item] for item in N_in_IC_oder]
 
         cut_coefficients = [0] * n
         j = 0
@@ -3261,9 +3217,61 @@ class LPAbstractDictionary(SageObject):
 
         #update cut_coefficients in the original order in self._nonbasic_variable
         cut_coef_dic = {item: coef for item, coef in zip(N_in_IC_oder, cut_coefficients)}
-        new_cut_coefficients = [cut_coef_dic[item] for item in list(N) if item in set_N_in_IC_oder]
+        new_cut_coefficients = [cut_coef_dic[item] for item in list(N) if item in set(N_in_IC_oder)]
 
-        return new_cut_coefficients, cut_constant        
+        return new_cut_coefficients, cut_constant
+
+    def pick_eligible_source_row(self, cut_generating_function_separator=None, 
+                                    basic_variable=None):
+        B = self.basic_variables()
+        list_B = list(B)
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        n = len(N)
+        m = len(B)
+        integer_variables = self.integer_variables()
+
+        def eligible_source_row(choose_variable, bi=None, 
+            cut_generating_function_separator=cut_generating_function_separator):
+            A_ith_row = self.row_coefficients(choose_variable)
+            if cut_generating_function_separator=="gomory_fractional":
+                for i in range (n):
+                    if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
+                        return False
+            #If the choose_variable is integer and its constant is also integer
+            #then there is no need for a cut
+            if not choose_variable in integer_variables or (bi is not None and bi.is_integer()):
+                return False
+            return True
+
+        integer_basic_variables = integer_variables.intersection(set(B))
+        if all(b[list_B.index(variable)].is_integer() for variable in integer_basic_variables):
+            raise ValueError("the solution of the integer basic variables are all integer, \
+                there is no way to add a cut")
+        if basic_variable != None:
+            choose_variable= variable(self.coordinate_ring(), basic_variable)
+            if choose_variable not in integer_variables:
+                raise ValueError("chosen variable should be an integer variable")
+            if not eligible_source_row(choose_variable, bi=None):
+                raise ValueError("this is not an eligible source row")
+            index = list_B.index(choose_variable)
+        else:
+            fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
+            variable_list = copy(list_B)
+            while True:
+                temp_index = fraction_list.index(min(fraction_list)) 
+                #temp index will change as long as we remove the variable of the
+                #ineglible source row from the fraction list and the variable lsit
+                choose_variable = variable_list[temp_index]
+                index = list_B.index(choose_variable)
+                #index wil not change, since we don't modify the list of basic variables
+                if eligible_source_row(choose_variable, b[index]):
+                    break
+                fraction_list.remove(min(fraction_list))
+                variable_list.remove(choose_variable)
+                if not fraction_list:
+                    raise ValueError("there does not exist an eligible source row")
+        return choose_variable, index        
 
     def possible_dual_simplex_method_steps(self):
         r"""

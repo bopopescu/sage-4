@@ -851,9 +851,9 @@ class InteractiveLPProblem(SageObject):
             sage: P.all_variables()
             {x1, x2, x3, x4, x5}
         """
-        probplem_variables = self.Abcx()[3]
+        problem_variables = self.Abcx()[3]
         slack_variables = self.slack_variables()
-        all_variables = list(probplem_variables) + list(slack_variables) 
+        all_variables = list(problem_variables) + list(slack_variables) 
         return set(all_variables)
 
     def base_ring(self):
@@ -930,7 +930,7 @@ class InteractiveLPProblem(SageObject):
 
     def continuous_variables(self):
         r"""
-        Return a set of continous variables of self
+        Return a set of continuous variables of self
 
         EXAMPLES::
             sage: A = ([1, 2, 1], [3, 1, 5])
@@ -2850,7 +2850,7 @@ class LPAbstractDictionary(SageObject):
 
     def continuous_variables(self):
         r"""
-        Return a set of continous variables of self
+        Return a set of continuous variables of self
 
         EXAMPLES::
             sage: A = ([1, 2, 1], [3, 1, 5])
@@ -3257,11 +3257,11 @@ class LPAbstractDictionary(SageObject):
         #first in integer variables, then in continuous variables
         variables = list(I) + list(C)
         set_N = set(N)
-        N_in_IC_oder = [item for item in variables if item in set_N]
+        N_in_IC_order = [item for item in variables if item in set_N]
         f_dic = {item: coef for item, coef in zip(N, f)}
-        new_f = [f_dic[item] for item in N_in_IC_oder]
+        new_f = [f_dic[item] for item in N_in_IC_order]
         A_ith_row_dic = {item: coef for item, coef in zip(N, A_ith_row)}
-        new_A_ith_row = [A_ith_row_dic[item] for item in N_in_IC_oder]
+        new_A_ith_row = [A_ith_row_dic[item] for item in N_in_IC_order]
 
         cut_coefficients = [0] * n
         j = 0
@@ -3284,8 +3284,8 @@ class LPAbstractDictionary(SageObject):
         cut_constant = -1
 
         #update cut_coefficients in the original order in self._nonbasic_variable
-        cut_coef_dic = {item: coef for item, coef in zip(N_in_IC_oder, cut_coefficients)}
-        new_cut_coefficients = [cut_coef_dic[item] for item in list(N) if item in set(N_in_IC_oder)]
+        cut_coef_dic = {item: coef for item, coef in zip(N_in_IC_order, cut_coefficients)}
+        new_cut_coefficients = [cut_coef_dic[item] for item in list(N) if item in set(N_in_IC_order)]
 
         return new_cut_coefficients, cut_constant
 

@@ -633,7 +633,7 @@ class InteractiveLPProblem(SageObject):
         names = map(str, x) + slack_variables
         R1 = PolynomialRing(self.base_ring(), names, order="neglex")
         slack_variables = R1.gens()[-m:]
-        self._R1=R1
+        self._R=R1
        
         if integer_variables == False:
             self._integer_variables = set([])
@@ -838,6 +838,24 @@ class InteractiveLPProblem(SageObject):
         """
         return self._Abcx
 
+    def all_variables(self):
+        r"""
+        Return a set of all variables of self
+
+        EXAMPLES::
+
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.all_variables()
+            {x1, x2, x3, x4, x5}
+        """
+        probplem_variables = self.Abcx()[3]
+        slack_variables = self.slack_variables()
+        all_variables = list(probplem_variables) + list(slack_variables) 
+        return set(all_variables)
+
     def base_ring(self):
         r"""
         Return the base ring of ``self``.
@@ -909,6 +927,23 @@ class InteractiveLPProblem(SageObject):
             [3 1]
         """
         return self._Abcx[0]
+
+    def continuous_variables(self):
+        r"""
+        Return a set of continous variables of self
+
+        EXAMPLES::
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: P.continuous_variables()
+            {x2, x3}
+        """
+        I = self.integer_variables()
+        all_variables = self.all_variables()
+        C = all_variables.difference(I)
+        return C
 
     def decision_variables(self):
         r"""
@@ -1578,7 +1613,36 @@ class InteractiveLPProblem(SageObject):
             result += self.plot_lines(F, "x")
         elif x[1] in integer_variables and not x[0] in integer_variables:
             result += self.plot_lines(F, "y")
-        return result  
+        return result
+
+    def slack_variables(self):
+        r"""
+        Return slack variables of ``self``.
+
+        Slack variables are differences between the constant terms and
+        left hand sides of the constraints.
+
+        If you want to give custom names to slack variables, you have to do so
+        during construction of the problem.
+
+        OUTPUT:
+
+        - a tuple
+
+        EXAMPLES::
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.slack_variables()
+            (x3, x4)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, ["C", "B"],
+            ....:     slack_variables=["L", "F"])
+            sage: P.slack_variables()
+            (L, F)
+        """
+        return self._R.gens()[-self.m():] 
 
     def standard_form(self):
         r"""
@@ -2513,37 +2577,6 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
                     "\n\\end{gather*}")
         return _assemble_arrayl(result, 1.5)
 
-
-    def slack_variables(self):
-        r"""
-        Return slack variables of ``self``.
-
-        Slack variables are differences between the constant terms and
-        left hand sides of the constraints.
-
-        If you want to give custom names to slack variables, you have to do so
-        during construction of the problem.
-
-        OUTPUT:
-
-        - a tuple
-
-        EXAMPLES::
-
-            sage: A = ([1, 1], [3, 1])
-            sage: b = (1000, 1500)
-            sage: c = (10, 5)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: P.slack_variables()
-            (x3, x4)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, ["C", "B"],
-            ....:     slack_variables=["L", "F"])
-            sage: P.slack_variables()
-            (L, F)
-        """
-        return self._R.gens()[-self.m():]
-
-
 class LPAbstractDictionary(SageObject):
     r"""
     Abstract base class for dictionaries for LP problems.
@@ -2619,7 +2652,7 @@ class LPAbstractDictionary(SageObject):
             sage: c = (55/10, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
-            sage: D.add_a_cut()
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
             sage: D.basic_variables()
             (x2, x1, x5)
             sage: D.leave(5)
@@ -2636,7 +2669,8 @@ class LPAbstractDictionary(SageObject):
             sage: D = P.final_dictionary()
             sage: D.integer_variables()
             {x1, x2, x4}
-            sage: D.add_a_cut(basic_variable="x3")
+            sage: D.add_a_cut(basic_variable="x3",
+            ....: cut_generating_function_separator="gomory_fractional")
             Traceback (most recent call last):
             ...
             ValueError: chosen variable should be an integer variable
@@ -2662,7 +2696,8 @@ class LPAbstractDictionary(SageObject):
         will give an error, because the non-integer variable x6 
         has a non-zero coefficient 1/27 on the source row
 
-            sage: D.add_a_cut(basic_variable='x3')
+            sage: D.add_a_cut(basic_variable='x3', 
+            ....: cut_generating_function_separator="gomory_fractional")
             Traceback (most recent call last):
             ...
             ValueError: this is not an eligible source row
@@ -2670,13 +2705,14 @@ class LPAbstractDictionary(SageObject):
         We cannot add a Gomory fractional cut to this dictionary, because 
         the non-integer variable x6 has non-zero coefficient on each row
 
-            sage: D.add_a_cut()
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
             Traceback (most recent call last):
             ...
             ValueError: there does not exist an eligible source row
             
         """
-        choose_variable, index= self.pick_eligible_source_row(basic_variable=basic_variable)
+        choose_variable, index= self.pick_eligible_source_row(basic_variable=basic_variable,
+                                        cut_generating_function_separator="gomory_fractional")
 
         if cut_generating_function_separator == "gomory_mixed_integer":
             cut_coefficients, cut_constant = self.make_Gomory_mixed_integer_cut(choose_variable, index)
@@ -2706,7 +2742,24 @@ class LPAbstractDictionary(SageObject):
         See add_row() in LPDictionary and LPRevisedDictionary for reference.
 
         """
-        raise NotImplementedError 
+        raise NotImplementedError
+
+    def all_variables(self):
+        r"""
+        Return a set of all variables of self
+
+        EXAMPLES::
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.all_variables()
+            {x1, x2, x3, x4, x5}
+        """
+        B = self.basic_variables()
+        N = self.nonbasic_variables()
+        all_variables = list(B) + list(N) 
+        return set(all_variables)
 
     def base_ring(self):
         r"""
@@ -2794,6 +2847,23 @@ class LPAbstractDictionary(SageObject):
         """
 
         raise NotImplementedError
+
+    def continuous_variables(self):
+        r"""
+        Return a set of continous variables of self
+
+        EXAMPLES::
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: P.continuous_variables()
+            {x2, x3}
+        """
+        I = self.integer_variables()
+        all_variables = self.all_variables()
+        C = all_variables.difference(I)
+        return C 
 
     def coordinate_ring(self):
         r"""
@@ -3170,14 +3240,12 @@ class LPAbstractDictionary(SageObject):
                                       A_ith_row[i] for i in range (n)]
         cut_constant = b[index].floor() - b[index]
         return cut_coefficients, cut_constant
-            
+
     def make_Gomory_mixed_integer_cut(self, choose_variable, index):
-        B = self.basic_variables()
         N = self.nonbasic_variables()
         b = self.constant_terms()
         I = self.integer_variables()
-        all_variables = list(B) + list(N) 
-        C = set(all_variables).difference(I)
+        C = self.continuous_variables()
         n = len(N)
         
         A_ith_row = self.row_coefficients(choose_variable)
@@ -3234,7 +3302,7 @@ class LPAbstractDictionary(SageObject):
         def eligible_source_row(choose_variable, bi=None, 
             cut_generating_function_separator=cut_generating_function_separator):
             A_ith_row = self.row_coefficients(choose_variable)
-            if cut_generating_function_separator=="gomory_fractional":
+            if cut_generating_function_separator == "gomory_fractional":
                 for i in range (n):
                     if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
                         return False
@@ -3470,9 +3538,9 @@ class LPAbstractDictionary(SageObject):
         raise NotImplementedError 
 
     def run_cutting_plane_algorithm(self, plot_cuts=False, 
-                xmin=None, xmax=None, ymin=None, ymax=None):
+                xmin=None, xmax=None, ymin=None, ymax=None, 
+                cut_generating_function_separator=None):
         r"""
-
         Perform the cutting plane method to solve a ILP problem.
 
         The problem variables may not be the same as the nonbasic
@@ -3497,7 +3565,8 @@ class LPAbstractDictionary(SageObject):
             sage: P = InteractiveLPProblemStandardForm(A, b, c, 
             ....: integer_variables=True)
             sage: D = P.final_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
+            ....: cut_generating_function_separator="gomory_fractional")
             sage: number_of_cuts
             5
             sage: A = ([-8, 1], [8, 1])
@@ -3506,13 +3575,15 @@ class LPAbstractDictionary(SageObject):
             sage: P = InteractiveLPProblemStandardForm(A, b, c,
             ....: integer_variables=True)
             sage: D = P.final_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
+            ....: cut_generating_function_separator="gomory_fractional")
             sage: number_of_cuts
             9
             sage: P1 = InteractiveLPProblemStandardForm(A, b, c,
             ....: integer_variables=True)
             sage: D = P1.final_revised_dictionary()
-            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False)
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
+            ....: cut_generating_function_separator="gomory_fractional" )
             sage: number_of_cuts
             9
             
@@ -3520,7 +3591,7 @@ class LPAbstractDictionary(SageObject):
         """
         number_of_cuts = 0
         while True:
-            self.add_a_cut()
+            self.add_a_cut(cut_generating_function_separator=cut_generating_function_separator)
             self.run_dual_simplex_method()
             b = self.constant_terms()
             number_of_cuts += 1
@@ -3552,7 +3623,7 @@ class LPAbstractDictionary(SageObject):
             sage: c = (4/7, 21/10)
             sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
             sage: D = P.final_dictionary()
-            sage: D.add_a_cut()
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
             sage: print(D.run_dual_simplex_method()) # not tested
             \begin{gather*}
             \allowdisplaybreaks
@@ -3574,7 +3645,7 @@ class LPAbstractDictionary(SageObject):
             sage: c = (17/47, -23/53)
             sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x2','x3','x4'})
             sage: D = P.final_dictionary()
-            sage: D.add_a_cut()
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
             sage: D.run_dual_simplex_method()  # not tested
 
         You should use the typeset mode as the command above generates long

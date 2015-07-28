@@ -196,7 +196,7 @@ from sage.misc.latex import EMBEDDED_MODE
 from sage.misc.misc import get_main_globals
 from sage.modules.all import random_vector, vector
 from sage.plot.all import Graphics, arrow, line, point, rainbow, text, colors
-from sage.rings.all import Infinity, PolynomialRing, QQ, RDF, ZZ
+from sage.rings.all import Infinity, PolynomialRing, QQ, RDF, ZZ, Integer
 from sage.structure.all import SageObject
 from sage.symbolic.all import SR
 
@@ -344,6 +344,32 @@ def _latex_product(coefficients, variables,
             separator = r" \mspace{-6mu}&\mspace{-6mu} "
     return separator.join(entries)
 
+def form_thin_long_triangle(k):
+    r"""
+
+    Generate a thin long triangle with vertices (0, 0), (1, 0), and (1/2, k) 
+    for some given integer K, and return the triangle in Ax<=b form.
+    This thin long triangle is an example of a system with large Chvatal rank.
+
+    INPUT:
+    -``k``-- an integer indicating the y cooridinate of the top vertex for the triangle
+
+    OUTPUT:
+    -``A`` -- a two by two matrix
+    -``b`` -- a two-element vector
+
+    EXAMPLES::
+        sage: from sage.numerical.interactive_simplex_method \
+        ....:     import form_thin_long_triangle
+        sage: A, b, = form_thin_long_triangle(4)
+        sage: A, b
+        (([-8, 1], [8, 1]), (0, 8))
+
+    """
+    A = ([Integer(-2 * k), Integer(1)], [Integer(2 * k), Integer(1)])
+    b = (Integer(0), Integer(2 * k))
+    type(b[0])
+    return A, b
 
 @cached_function
 def variable(R, v):
@@ -2632,6 +2658,8 @@ class LPAbstractDictionary(SageObject):
 
         INPUT:
 
+        -``cut_generating_function_separator``-- (default: None) a string indicating 
+        the cut generating function separator
         -``basic_variable`` -- (default: None) a string specifying
         the basic variable that will provide the source row for the cut. 
         -``new_slack_variable`` --(default: None) a string giving
@@ -3645,6 +3673,11 @@ class LPAbstractDictionary(SageObject):
 
         -``plot_cuts`` -- (default:False) a boolean value to decide whether
         plot the cuts or not
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+        -``cut_generating_function_separator``-- (default: None) a string indicating 
+        the cut generating function separator
+
 
         OUTPUT:
 
@@ -3663,17 +3696,17 @@ class LPAbstractDictionary(SageObject):
             ....: cut_generating_function_separator="gomory_fractional")
             sage: number_of_cuts
             5
-            sage: A = ([-8, 1], [8, 1])
-            sage: b = (0, 8)
+            sage: from sage.numerical.interactive_simplex_method \
+            ....:     import form_thin_long_triangle
+            sage: A1, b1 = form_thin_long_triangle(4)
             sage: c = (-1/27, 1/31)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c,
-            ....: integer_variables=True)
+            sage: P = InteractiveLPProblemStandardForm(A1, b1, c, integer_variables=True)
             sage: D = P.final_dictionary()
             sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
             ....: cut_generating_function_separator="gomory_fractional")
             sage: number_of_cuts
             9
-            sage: P1 = InteractiveLPProblemStandardForm(A, b, c,
+            sage: P1 = InteractiveLPProblemStandardForm(A1, b1, c,
             ....: integer_variables=True)
             sage: D = P1.final_revised_dictionary()
             sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
@@ -3692,7 +3725,8 @@ class LPAbstractDictionary(SageObject):
             if all(i.is_integer() for i in b):
                 break
         if plot_cuts:
-            result = self.plot(number_of_cuts=number_of_cuts)
+            result = self.plot(number_of_cuts=number_of_cuts, 
+                    xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
             result.show()
         return number_of_cuts
 

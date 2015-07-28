@@ -2676,8 +2676,8 @@ class LPAbstractDictionary(SageObject):
             ValueError: chosen variable should be an integer variable
 
 
-        add_a_cut also refuses making a cut if a non-integer variable is 
-        among the non-basic variables with non-zero coefficients
+        add_a_cut also refuses making a Gomory fractional cut if a non-integer 
+        variable is among the non-basic variables with non-zero coefficients
 
             sage: A = ([1, 3, 5], [2, 6, 9], [6, 8, 3])
             sage: b = (12/10, 23/10, 31/10)
@@ -2709,10 +2709,15 @@ class LPAbstractDictionary(SageObject):
             Traceback (most recent call last):
             ...
             ValueError: there does not exist an eligible source row
+
+        However, the previous condition is not necessary for Gomory mixed integer cuts
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_mixed_integer")
+            sage: D.basic_variables()
+            (x3, x5, x1, x7)
             
         """
         choose_variable, index= self.pick_eligible_source_row(basic_variable=basic_variable,
-                                        cut_generating_function_separator="gomory_fractional")
+                            cut_generating_function_separator=cut_generating_function_separator)
 
         if cut_generating_function_separator == "gomory_mixed_integer":
             cut_coefficients, cut_constant = self.make_Gomory_mixed_integer_cut(choose_variable, index)
@@ -3233,6 +3238,32 @@ class LPAbstractDictionary(SageObject):
         return self.row_coefficients(self._leaving)
 
     def make_Gomory_fractional_cut(self, choose_variable, index):
+        r"""
+        Return the coefficients and constant for a Gomory fractional cut
+
+        INPUT:
+        -``choose_variable`` -- the basic variable for the chosen cut
+        -``index`` -- an integer indicating the choose_variable's index in
+        self.constant_terms()
+
+        OUTPUT:
+        -``cut_coefficients`` -- a list of coefficients for the cut
+        -``cut_constant`` -- the constant for the cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.basic_variables()
+            (x2, x1)
+            sage: v = D.basic_variables()[0]
+            sage: D.make_Gomory_fractional_cut(v, 0)
+            ([-1/10, -4/5], -3/10)
+
+        """
         b = self.constant_terms()
         n = len(self.nonbasic_variables())
         A_ith_row = self.row_coefficients(choose_variable)
@@ -3242,6 +3273,32 @@ class LPAbstractDictionary(SageObject):
         return cut_coefficients, cut_constant
 
     def make_Gomory_mixed_integer_cut(self, choose_variable, index):
+        r"""
+        Return the coefficients and constant a Gomory fractional cut
+
+        INPUT:
+        -``choose_variable`` -- the basic variable of the chosen cut
+        -``index`` -- an integer indicating the choose_variable's index in
+        self.constant_terms()
+
+        OUTPUT:
+        -``cut_coefficients`` -- a list of coefficients for the cut
+        -``cut_constant`` -- the constant for the cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.basic_variables()
+            (x2, x1)
+            sage: v = D.basic_variables()[0]
+            sage: D.make_Gomory_mixed_integer_cut(v, 0)
+            ([-1/3, -2/7], -1)
+
+        """
         N = self.nonbasic_variables()
         b = self.constant_terms()
         I = self.integer_variables()
@@ -3291,6 +3348,43 @@ class LPAbstractDictionary(SageObject):
 
     def pick_eligible_source_row(self, cut_generating_function_separator=None, 
                                     basic_variable=None):
+        r"""
+        Pick an eligible source row for ``self``
+
+        INPUT:
+
+        -``cut_generating_function_separator``-- (default: None) a string indicating 
+        the cut generating function separator
+        -``basic_variable`` -- (default: None) a string specifying
+        the basic variable that will provide the source row for the cut
+
+        OUTPUT:
+
+        -``choose_variable`` -- the basic variable for the chosen cut
+        -``index`` -- an integer indicating the choose_variable's index in
+        self.constant_terms()
+
+        EXAMPLES::
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.basic_variables()
+            (x2, x1)
+            sage: D.integer_variables()
+            {x1, x2, x3, x4}
+            sage: D.constant_terms()
+            (33/10, 13/10)
+
+        None of the variables are continuous, and the constant term of x2 is not an integer
+        Therefore, the row for x2 is an eligible source row
+
+            sage: D.pick_eligible_source_row(cut_generating_function_separator="gomory_fractional")
+            (x2, 0)
+
+        See the method add_a_cut for examples in ineligible source rows
+        """
         B = self.basic_variables()
         list_B = list(B)
         N = self.nonbasic_variables()
@@ -3301,14 +3395,14 @@ class LPAbstractDictionary(SageObject):
 
         def eligible_source_row(choose_variable, bi=None, 
             cut_generating_function_separator=cut_generating_function_separator):
-            A_ith_row = self.row_coefficients(choose_variable)
             if cut_generating_function_separator == "gomory_fractional":
+                A_ith_row = self.row_coefficients(choose_variable)
                 for i in range (n):
                     if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
                         return False
             #If the choose_variable is integer and its constant is also integer
             #then there is no need for a cut
-            if not choose_variable in integer_variables or (bi is not None and bi.is_integer()):
+            if (not choose_variable in integer_variables) or (bi is not None and bi.is_integer()):
                 return False
             return True
 

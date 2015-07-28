@@ -3364,7 +3364,7 @@ class LPAbstractDictionary(SageObject):
                 if a_j >= 0:  
                     cut_coefficients[j] -= a_j / f_0
                 else:
-                    cut_coefficients[j] -= a_j / (1 - f_0)
+                    cut_coefficients[j] += a_j / (1 - f_0)
                 j += 1
         cut_constant = -1
 

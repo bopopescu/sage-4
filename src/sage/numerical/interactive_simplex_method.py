@@ -4295,7 +4295,7 @@ class LPDictionary(LPAbstractDictionary):
         """
         return self._objective_variable  
 
-    def plot(self, number_of_cuts=0):
+    def plot(self, number_of_cuts=0, xmin=None, xmax=None, ymin=None, ymax=None):
         r"""
 
         Return a plot of the problem of self
@@ -4308,6 +4308,8 @@ class LPDictionary(LPAbstractDictionary):
 
         -``number_of_cuts'' -- an integer indicating the number of the cuts 
         made on the original problem
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
 
         OUTPUT:
 
@@ -4322,7 +4324,8 @@ class LPDictionary(LPAbstractDictionary):
         c = self.objective_coefficients()
         #Make a temporary problem based on the data of the dictioanry
         P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
-        return P.plot(number_of_cuts=number_of_cuts)
+        return P.plot(number_of_cuts=number_of_cuts, xmin=xmin, xmax=xmax, 
+                        ymin=ymin, ymax=ymax)
 
 
     def row_coefficients(self, v):
@@ -5366,7 +5369,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
         """
         return self.y() * self.problem().b()
 
-    def plot(self, number_of_cuts=0):
+    def plot(self, number_of_cuts=0, xmin=None, xmax=None, ymin=None, ymax=None):
         r"""
 
         Return the plot of the problem of self
@@ -5375,9 +5378,12 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         -``number_of_cuts'' -- an integer indicating the number of the cuts 
         made on the original problem
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
 
         """
-        return self.problem().plot(number_of_cuts=number_of_cuts)
+        return self.problem().plot(number_of_cuts=number_of_cuts, 
+            xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
 
     def problem(self):
         r"""

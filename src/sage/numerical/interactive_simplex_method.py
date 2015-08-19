@@ -590,6 +590,10 @@ class InteractiveLPProblem(SageObject):
       dual: each problem is of course dual to its own dual, this flag is mostly
       for internal use and affects default variable names only
 
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
+      if all the problem variables are integer or not, or a set of strings giving
+      some problem variables' names, where those problem variables are integer.
+
     EXAMPLES:
 
     We will construct the following problem:
@@ -629,7 +633,7 @@ class InteractiveLPProblem(SageObject):
 
     def __init__(self, A, b, c, x="x",
                  constraint_type="<=", variable_type="", problem_type="max",
-                 base_ring=None, is_primal=True):
+                 base_ring=None, is_primal=True, integer_variables=False):
         r"""
         See :class:`InteractiveLPProblem` for documentation.
 
@@ -640,6 +644,30 @@ class InteractiveLPProblem(SageObject):
             sage: c = (10, 5)
             sage: P = InteractiveLPProblem(A, b, c, ["C", "B"], variable_type=">=")
             sage: TestSuite(P).run()
+
+        Test for the sufficient conditions for integer slack variables
+            sage: P = InteractiveLPProblem(A, b, c)
+            sage: P.integer_variables()
+            set()
+            sage: P = InteractiveLPProblem(A, b, c, integer_variables=True)
+            sage: P.integer_variables()
+            {x1, x2, x3, x4}
+            sage: b1 = (11/10, 5)
+            sage: P = InteractiveLPProblem(A, b1, c, integer_variables=True)
+            sage: P.integer_variables()
+            {x1, x2, x4}
+            sage: A1 = ([1, 1], [3/10, 1])
+            sage: P = InteractiveLPProblem(A1, b1, c, integer_variables=True)
+            sage: P.integer_variables()
+            {x1, x2}
+
+        Allow the user to choose integer slack variables which may violate the sufficient
+        conditions
+            sage: P = InteractiveLPProblem(A, b, c, integer_variables={'x1', 'x2', 'x3'})
+            sage: P.integer_variables()
+            {x1, x2, x3}
+
+
         """
         super(InteractiveLPProblem, self).__init__()
         A = matrix(A)
@@ -707,6 +735,31 @@ class InteractiveLPProblem(SageObject):
         R1 = PolynomialRing(self.base_ring(), names, order="neglex")
         slack_variables = R1.gens()[-m:]
         self._R=R1
+
+        if integer_variables == False:
+            self._integer_variables = set([])
+        elif integer_variables == True:
+            self._integer_variables = set(x)
+        else:
+            self._integer_variables = set([])
+            for v in integer_variables:
+                self._integer_variables.add(variable(R1, v))
+        if not self._integer_variables.intersection(set(slack_variables)):
+            if integer_variables:
+                for i in range (m):
+                    if b[i].is_integer() and all(coef.is_integer() for coef in A[i]):
+                        self._integer_variables.add(variable(R1, slack_variables[i]))
+        #use sufficient conditions to assign problem variables to be integer
+        #tricks from integer slack variables
+        #example 1, x <= 5 where the slack variable is integer
+        if self._integer_variables.intersection(set(x)) != set(x):
+            for i in range (m):
+                if slack_variables[i] in self._integer_variables and b[i].is_integer():
+                    for j in range (self.n()):
+                        copy_Ai = copy(list(A[i]))
+                        copy_Ai.remove(copy_Ai[j])
+                        if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
+                            self._integer_variables.add(x[j])
 
     def __eq__(self, other):
         r"""
@@ -970,6 +1023,23 @@ class InteractiveLPProblem(SageObject):
         """
         return self._Abcx[0]
 
+    def continuous_variables(self):
+        r"""
+        Return a set of continuous variables of self
+
+        EXAMPLES::
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: P.continuous_variables()
+            {x2, x3}
+        """
+        I = self.integer_variables()
+        all_variables = self.all_variables()
+        C = all_variables.difference(I)
+        return C
+
     def decision_variables(self):
         r"""
         Return decision variables of ``self``, i.e. `x`.
@@ -1059,7 +1129,8 @@ class InteractiveLPProblem(SageObject):
             problem_type = "-" + problem_type
         return InteractiveLPProblem(A, b, c, y,
             constraint_type, variable_type, problem_type,
-            is_primal=not self.is_primal())
+            is_primal=not self.is_primal(),
+            integer_variables=self.integer_variables())
 
     @cached_method
     def feasible_set(self):
@@ -1125,6 +1196,26 @@ class InteractiveLPProblem(SageObject):
             xmin = min([-xmax/4.0] + [v[0] for v in F.vertices()])
         xmin, xmax, ymin, ymax = map(QQ, [xmin, xmax, ymin, ymax])
         return xmin, xmax, ymin, ymax
+
+    def integer_variables(self):
+        r"""
+
+        Return the set of integer variables of self
+
+        EXAMPLES:
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1/10, 15/10)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblem(A, b, c, integer_variables={'x1'})
+            sage: P.integer_variables()
+            {x1}
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: P.integer_variables()
+            {x1}
+
+        """
+        return self._integer_variables
 
     def is_bounded(self):
         r"""
@@ -1565,7 +1656,8 @@ class InteractiveLPProblem(SageObject):
             objective_name = - objective_name
         problem_type = "-max" if is_negative else "max"
         return InteractiveLPProblemStandardForm(A, b, c, x, problem_type,
-            is_primal=is_primal, objective_name=objective_name)
+            is_primal=is_primal, objective_name=objective_name,
+            integer_variables=self.integer_variables())
 
     # Aliases for the standard notation
     A = constraint_coefficients
@@ -1629,6 +1721,10 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
     - ``objective_name`` -- a string or a symbolic expression for the
       objective used in dictionaries, default depends on :func:`style`
 
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
+      if all the problem variables are integer or not, or a set of strings giving
+      some problem variables' names, where those problem variables are integer.
+
     EXAMPLES::
 
         sage: A = ([1, 1], [3, 1])
@@ -1650,7 +1746,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
 
     def __init__(self, A, b, c, x="x", problem_type="max",
                  slack_variables=None, auxiliary_variable=None,
-                 base_ring=None, is_primal=True, objective_name=None):
+                 base_ring=None, is_primal=True, objective_name=None,
+                 integer_variables=False):
         r"""
         See :class:`InteractiveLPProblemStandardForm` for documentation.
 
@@ -1661,6 +1758,28 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             sage: c = (10, 5)
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: TestSuite(P).run()
+
+        Test for the sufficient conditions for integer slack variables
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.integer_variables()
+            set()
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: P.integer_variables()
+            {x1, x2, x3, x4}
+            sage: b1 = (11/10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b1, c, integer_variables=True)
+            sage: P.integer_variables()
+            {x1, x2, x4}
+            sage: A1 = ([1, 1], [3/10, 1])
+            sage: P = InteractiveLPProblemStandardForm(A1, b1, c, integer_variables=True)
+            sage: P.integer_variables()
+            {x1, x2}
+
+        Allow the user to choose integer slack variables which may violate the sufficient
+        conditions
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1', 'x2', 'x3'})
+            sage: P.integer_variables()
+            {x1, x2, x3}
         """
         if problem_type not in ("max", "-max"):
             raise ValueError("problems in standard form must be of (negative) "
@@ -1703,6 +1822,33 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             objective_name = default_variable_name(
                 "primal objective" if is_primal else "dual objective")
         self._objective_name = SR(objective_name)
+
+        if integer_variables == False:
+            self._integer_variables = set([])
+        elif integer_variables == True:
+            self._integer_variables = set(self.Abcx()[3])
+        else:
+            self._integer_variables = set([])
+            for v in integer_variables:
+                self._integer_variables.add(variable(R, v))
+        #if there is no assigned integer slack variables by the user
+        # use sufficient conditions to assign slack variables to be integer
+        if not self._integer_variables.intersection(set(self.slack_variables())):
+            if integer_variables:
+                for i in range (m):
+                    if b[i].is_integer() and all(coef.is_integer() for coef in A[i]):
+                        self._integer_variables.add(variable(R, self.slack_variables()[i]))
+        #use sufficient conditions to assign problem variables to be integer
+        #tricks from integer slack variables
+        #example 1, x <= 5 where the slack variable is integer
+        if self._integer_variables.intersection(set(x)) != set(x):
+            for i in range (self.m()):
+                if self.slack_variables()[i] in self._integer_variables and b[i].is_integer():
+                    for j in range (self.n()):
+                        copy_Ai = copy(list(A[i]))
+                        copy_Ai.remove(copy_Ai[j])
+                        if A[i][j].is_integer() and all(coef == 0 for coef in copy_Ai):
+                            self._integer_variables.add(x[j])
 
     def auxiliary_problem(self, objective_name=None):
         r"""
@@ -1751,7 +1897,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         return InteractiveLPProblemStandardForm(
             A, self.b(), c,
             X[:-m], slack_variables=X[-m:], auxiliary_variable=X[0],
-            objective_name=objective_name)
+            objective_name=objective_name,
+            integer_variables=self.integer_variables())
 
     def auxiliary_variable(self):
         r"""
@@ -1912,7 +2059,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
                 v += cj * b[i]
         B = [self._R(_) for _ in B]
         N = [self._R(_) for _ in N]
-        return LPDictionary(A, b, c, v, B, N, self.objective_name())
+        return LPDictionary(A, b, c, v, B, N, self.objective_name(),
+            integer_variables=self.integer_variables())
 
     def final_dictionary(self):
         r"""
@@ -2008,7 +2156,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
         x = self._R.gens()
         m, n = self.m(), self.n()
         return LPDictionary(A, b, c, 0, x[-m:], x[-m-n:-m],
-                            self.objective_name())
+                            self.objective_name(),
+                            integer_variables=self.integer_variables())
 
     def inject_variables(self, scope=None, verbose=True):
         r"""
@@ -2120,7 +2269,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             bm = min(self.b())
             if bm < 0:
                 x_B[self.b().list().index(bm)] = self.auxiliary_variable()
-        return LPRevisedDictionary(self, x_B)
+        return LPRevisedDictionary(self, x_B,
+                integer_variables=self.integer_variables())
 
     def run_revised_simplex_method(self):
         r"""
@@ -2461,6 +2611,23 @@ class LPAbstractDictionary(SageObject):
 
         raise NotImplementedError
 
+    def continuous_variables(self):
+        r"""
+        Return a set of continuous variables of self
+
+        EXAMPLES::
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: P.continuous_variables()
+            {x2, x3}
+        """
+        I = self.integer_variables()
+        all_variables = self.all_variables()
+        C = all_variables.difference(I)
+        return C
+
     def coordinate_ring(self):
         r"""
         Return the coordinate ring of ``self``.
@@ -2648,6 +2815,28 @@ class LPAbstractDictionary(SageObject):
         if v not in self.nonbasic_variables():
             raise ValueError("entering variable must be non-basic")
         self._entering = v
+
+    def integer_variables(self):
+        r"""
+
+        Return the set of integer variables of self
+
+        EXAMPLES:
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1/10, 15/10)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: D = P.final_dictionary()
+            sage: D.integer_variables()
+            {x1}
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
+            sage: D = P.final_revised_dictionary()
+            sage: D.integer_variables()
+            {x1}
+
+        """
+        return self._integer_variables
 
     def is_dual_feasible(self):
         r"""
@@ -3133,6 +3322,10 @@ class LPDictionary(LPAbstractDictionary):
     
     - ``objective_name`` -- a "name" for the objective `z`
 
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
+      if all the problem variables are integer or not, or a set of strings giving
+      some problem variables' names, where those problem variables are integer.
+
     OUTPUT:
 
     - a :class:`dictionary for an LP problem <LPDictionary>`
@@ -3170,7 +3363,7 @@ class LPDictionary(LPAbstractDictionary):
 
     def __init__(self, A, b, c, objective_value,
                  basic_variables, nonbasic_variables,
-                 objective_name):
+                 objective_name, integer_variables=False):
         r"""
         See :class:`LPDictionary` for documentation.
 
@@ -3193,6 +3386,7 @@ class LPDictionary(LPAbstractDictionary):
         B = vector(basic_variables)
         N = vector(nonbasic_variables)
         self._AbcvBNz = [A, b, c, objective_value, B, N, SR(objective_name)]
+        self._integer_variables = integer_variables
 
     def __eq__(self, other):
         r"""
@@ -3579,6 +3773,10 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     - ``basic_variables`` -- a list of basic variables or their indices
 
+    - ``integer_variables`` -- (default: False) either a boolean value indicating
+      if all the problem variables are integer or not, or a set of strings giving
+      some problem variables' names, where those problem variables are integer.
+
     OUTPUT:
 
     - a :class:`revised dictionary for an LP problem <LPRevisedDictionary>`
@@ -3686,7 +3884,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
     dictionary entries.
     """
 
-    def __init__(self, problem, basic_variables):
+    def __init__(self, problem, basic_variables, integer_variables=False):
         r"""
         See :class:`LPRevisedDictionary` for documentation.
 
@@ -3708,6 +3906,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
         self._problem = problem
         R =  problem.coordinate_ring()
         self._x_B = vector(R, [variable(R, v) for v in basic_variables])
+        self._integer_variables = integer_variables
 
     def __eq__(self, other):
         r"""

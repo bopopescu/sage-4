@@ -2400,6 +2400,25 @@ class LPAbstractDictionary(SageObject):
         return vector(self.base_ring(),
                       v if include_slack_variables else v[:len(N)])
 
+    def basic_variables(self):
+        r"""
+        Return the basic variables of ``self``.
+
+        See basic_variables() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
+        raise NotImplementedError
+
+    def constant_terms(self):
+        r"""
+        Return constant terms in the relations of ``self``.
+
+        See constant_terms() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
+
+        raise NotImplementedError
+
     def coordinate_ring(self):
         r"""
         Return the coordinate ring of ``self``.

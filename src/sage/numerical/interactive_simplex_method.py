@@ -3780,6 +3780,37 @@ class LPDictionary(LPAbstractDictionary):
         """
         return self._AbcvBNz[3]
 
+    def plot(self, number_of_cuts=0, xmin=None, xmax=None, ymin=None, ymax=None):
+        r"""
+
+        Return a plot of the problem of self
+
+        The problem variables may not be the same as the nonbasic
+        variables of the dictionary. Therefore, the plot may not be showed
+        correct information for the original problem
+
+        INPUT:
+
+        -``number_of_cuts'' -- an integer indicating the number of the cuts
+        made on the original problem
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+
+        OUTPUT:
+
+        - a plot
+
+        """
+        B = self.basic_variables()
+        A = tuple([self.row_coefficients(B[i]) for i in range (len(B))])
+        A = matrix(self.base_ring(), A)
+        b = self.constant_terms()
+        c = self.objective_coefficients()
+        #Make a temporary problem based on the data of the dictioanry
+        P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+        return P.plot(number_of_cuts=number_of_cuts, xmin=xmin, xmax=xmax,
+                        ymin=ymin, ymax=ymax)
+
     def row_coefficients(self, v):
         r"""
         Return the coefficients of a basic variable
@@ -4678,6 +4709,22 @@ class LPRevisedDictionary(LPAbstractDictionary):
             0
         """
         return self.y() * self.problem().b()
+
+    def plot(self, number_of_cuts=0, xmin=None, xmax=None, ymin=None, ymax=None):
+        r"""
+
+        Return the plot of the problem of self
+
+        INPUT:
+
+        -``number_of_cuts'' -- an integer indicating the number of the cuts
+        made on the original problem
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+
+        """
+        return self.problem().plot(number_of_cuts=number_of_cuts,
+            xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
 
     def problem(self):
         r"""

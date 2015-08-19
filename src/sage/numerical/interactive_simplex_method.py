@@ -700,6 +700,14 @@ class InteractiveLPProblem(SageObject):
 
         self._is_primal = is_primal
 
+        slack_variables = ["{}{:d}".format("x", i)
+                               for i in range(n + 1, n + m + 1)]
+
+        names = [str(_) for _ in x] + slack_variables
+        R1 = PolynomialRing(self.base_ring(), names, order="neglex")
+        slack_variables = R1.gens()[-m:]
+        self._R=R1
+
     def __eq__(self, other):
         r"""
         Check if two LP problems are equal.
@@ -871,6 +879,24 @@ class InteractiveLPProblem(SageObject):
             )
         """
         return self._Abcx
+
+    def all_variables(self):
+        r"""
+        Return a set of all variables of self
+
+        EXAMPLES::
+
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.all_variables()
+            {x1, x2, x3, x4, x5}
+        """
+        problem_variables = self.Abcx()[3]
+        slack_variables = self.slack_variables()
+        all_variables = list(problem_variables) + list(slack_variables)
+        return set(all_variables)
 
     def base_ring(self):
         r"""
@@ -1439,6 +1465,35 @@ class InteractiveLPProblem(SageObject):
         result._extra_kwds["aspect_ratio"] = 1
         result.set_aspect_ratio(1)
         return result
+
+    def slack_variables(self):
+        r"""
+        Return slack variables of ``self``.
+
+        Slack variables are differences between the constant terms and
+        left hand sides of the constraints.
+
+        If you want to give custom names to slack variables, you have to do so
+        during construction of the problem.
+
+        OUTPUT:
+
+        - a tuple
+
+        EXAMPLES::
+
+            sage: A = ([1, 1], [3, 1])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.slack_variables()
+            (x3, x4)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, ["C", "B"],
+            ....:     slack_variables=["L", "F"])
+            sage: P.slack_variables()
+            (L, F)
+        """
+        return self._R.gens()[-self.m():]
 
     def standard_form(self, objective_name=None):
         r"""
@@ -2255,36 +2310,6 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
                     "\n\\end{gather*}")
         return _assemble_arrayl(result, 1.5)
 
-    def slack_variables(self):
-        r"""
-        Return slack variables of ``self``.
-
-        Slack variables are differences between the constant terms and
-        left hand sides of the constraints.
-
-        If you want to give custom names to slack variables, you have to do so
-        during construction of the problem.
-
-        OUTPUT:
-
-        - a tuple
-
-        EXAMPLES::
-
-            sage: A = ([1, 1], [3, 1])
-            sage: b = (1000, 1500)
-            sage: c = (10, 5)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c)
-            sage: P.slack_variables()
-            (x3, x4)
-            sage: P = InteractiveLPProblemStandardForm(A, b, c, ["C", "B"],
-            ....:     slack_variables=["L", "F"])
-            sage: P.slack_variables()
-            (L, F)
-        """
-        return self._R.gens()[-self.m():]
-
-
 class LPAbstractDictionary(SageObject):
     r"""
     Abstract base class for dictionaries for LP problems.
@@ -2331,6 +2356,23 @@ class LPAbstractDictionary(SageObject):
             LP problem dictionary (use typeset mode to see details)
         """
         return "LP problem dictionary (use typeset mode to see details)"
+
+    def all_variables(self):
+        r"""
+        Return a set of all variables of self
+
+        EXAMPLES::
+            sage: A = ([1, 2, 1], [3, 1, 5])
+            sage: b = (1000, 1500)
+            sage: c = (10, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.all_variables()
+            {x1, x2, x3, x4, x5}
+        """
+        B = self.basic_variables()
+        N = self.nonbasic_variables()
+        all_variables = list(B) + list(N)
+        return set(all_variables)
 
     def base_ring(self):
         r"""

@@ -348,6 +348,32 @@ def _latex_product(coefficients, variables,
             separator = r" \mspace{-6mu}&\mspace{-6mu} "
     return separator.join(entries)
 
+def form_thin_long_triangle(k):
+    r"""
+
+    Generate a thin long triangle with vertices (0, 0), (1, 0), and (1/2, k)
+    for some given integer K, and return the triangle in Ax<=b form.
+    This thin long triangle is an example of a system with large Chvatal rank.
+
+    INPUT:
+    -``k``-- an integer indicating the y coordinate of the top vertex for the triangle
+
+    OUTPUT:
+    -``A`` -- a two by two matrix
+    -``b`` -- a two-element vector
+
+    EXAMPLES::
+        sage: from sage.numerical.interactive_simplex_method \
+        ....:     import form_thin_long_triangle
+        sage: A, b, = form_thin_long_triangle(4)
+        sage: A, b
+        (([-8, 1], [8, 1]), (0, 8))
+
+    """
+    A = ([Integer(-2 * k), Integer(1)], [Integer(2 * k), Integer(1)])
+    b = (Integer(0), Integer(2 * k))
+    type(b[0])
+    return A, b
 
 @cached_function
 def variable(R, v):
@@ -2662,6 +2688,122 @@ class LPAbstractDictionary(SageObject):
         """
         return "LP problem dictionary (use typeset mode to see details)"
 
+    def add_a_cut(self, cut_generating_function_separator=None,
+                basic_variable=None, new_slack_variable=None):
+        r"""
+
+        Update the dictionary by adding a Gomory fractional cut
+
+        INPUT:
+
+        -``cut_generating_function_separator``-- (default: None) a string indicating
+        the cut generating function separator
+        -``basic_variable`` -- (default: None) a string specifying
+        the basic variable that will provide the source row for the cut.
+        -``new_slack_variable`` --(default: None) a string giving
+        the name of the new_slack_variable. If the argument is none,
+        the new slack variable will be the "xn" where n is
+        the next index of variable list.
+
+        OUTPUT:
+
+        -none, but the dictionary will be updated with an additional
+        row that is constructed from a Gomory fractional cut, while the
+        source row can be chosen by the user or picked by the most
+        fractional basic variable
+
+        EXAMPLES::
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
+            sage: D.basic_variables()
+            (x2, x1, x5)
+            sage: D.leave(5)
+            sage: D.leaving_coefficients()
+            (-1/10, -4/5)
+            sage: D.constant_terms()
+            (33/10, 13/10, -3/10)
+
+        add_a_cut refuses making a cut if the basic variable of the source row
+        is not an integer
+
+            sage: b = (2/10, 17)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.integer_variables()
+            {x1, x2, x4}
+            sage: D.add_a_cut(basic_variable="x3",
+            ....: cut_generating_function_separator="gomory_fractional")
+            Traceback (most recent call last):
+            ...
+            ValueError: chosen variable should be an integer variable
+
+
+        add_a_cut also refuses making a Gomory fractional cut if a non-integer
+        variable is among the non-basic variables with non-zero coefficients
+
+            sage: A = ([1, 3, 5], [2, 6, 9], [6, 8, 3])
+            sage: b = (12/10, 23/10, 31/10)
+            sage: c = (3, 5, 7)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c,
+            ....: integer_variables= {'x1', 'x3'})
+            sage: D = P.final_dictionary()
+            sage: D.nonbasic_variables()
+            (x6, x2, x4)
+            sage: D.integer_variables()
+            {x1, x3}
+            sage: D.row_coefficients("x3")
+            (-1/27, 10/27, 2/9)
+
+        If the user chooses x3 to provide the source row, add_a_cut
+        will give an error, because the non-integer variable x6
+        has a non-zero coefficient 1/27 on the source row
+
+            sage: D.add_a_cut(basic_variable='x3',
+            ....: cut_generating_function_separator="gomory_fractional")
+            Traceback (most recent call last):
+            ...
+            ValueError: this is not an eligible source row
+
+        We cannot add a Gomory fractional cut to this dictionary, because
+        the non-integer variable x6 has non-zero coefficient on each row
+
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
+            Traceback (most recent call last):
+            ...
+            ValueError: there does not exist an eligible source row
+
+        However, the previous condition is not necessary for Gomory mixed integer cuts
+            sage: D.add_a_cut(cut_generating_function_separator="gomory_mixed_integer")
+            sage: D.basic_variables()
+            (x3, x5, x1, x7)
+
+        """
+        choose_variable, index= self.pick_eligible_source_row(basic_variable=basic_variable,
+                            cut_generating_function_separator=cut_generating_function_separator)
+
+        if cut_generating_function_separator == "gomory_mixed_integer":
+            cut_coefficients, cut_constant = self.make_Gomory_mixed_integer_cut(choose_variable, index)
+            integer_slack_variable = False
+        elif cut_generating_function_separator == "gomory_fractional":
+            cut_coefficients, cut_constant = self.make_Gomory_fractional_cut(choose_variable, index)
+            integer_slack_variable = True
+
+        if new_slack_variable != None:
+            if not isinstance(new_slack_variable, str):
+                raise TypeError("entering must be a string of a slack variable name")
+            else:
+                add_slack_variable = new_slack_variable
+        else:
+            cut_index = len(self.nonbasic_variables()) + len(self.basic_variables()) + 1
+            add_slack_variable = SR("x" + str(cut_index))
+
+        self.add_row(cut_coefficients, cut_constant, add_slack_variable,
+                    integer_slack_variable=integer_slack_variable)
+
     def add_row(self):
         r"""
         Update a dictionary with an additional row based on a given dictionary, the index of
@@ -3161,6 +3303,204 @@ class LPAbstractDictionary(SageObject):
                              "its coefficients")
         return self.row_coefficients(self._leaving)
 
+    def make_Gomory_fractional_cut(self, choose_variable, index):
+        r"""
+        Return the coefficients and constant for a Gomory fractional cut
+
+        INPUT:
+        -``choose_variable`` -- the basic variable for the chosen cut
+        -``index`` -- an integer indicating the choose_variable's index in
+        self.constant_terms()
+
+        OUTPUT:
+        -``cut_coefficients`` -- a list of coefficients for the cut
+        -``cut_constant`` -- the constant for the cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.basic_variables()
+            (x2, x1)
+            sage: v = D.basic_variables()[0]
+            sage: D.make_Gomory_fractional_cut(v, 0)
+            ([-1/10, -4/5], -3/10)
+
+        """
+        b = self.constant_terms()
+        n = len(self.nonbasic_variables())
+        A_ith_row = self.row_coefficients(choose_variable)
+        cut_coefficients = [ A_ith_row[i].floor() -
+                                      A_ith_row[i] for i in range (n)]
+        cut_constant = b[index].floor() - b[index]
+        return cut_coefficients, cut_constant
+
+    def make_Gomory_mixed_integer_cut(self, choose_variable, index):
+        r"""
+        Return the coefficients and constant a Gomory fractional cut
+
+        INPUT:
+        -``choose_variable`` -- the basic variable of the chosen cut
+        -``index`` -- an integer indicating the choose_variable's index in
+        self.constant_terms()
+
+        OUTPUT:
+        -``cut_coefficients`` -- a list of coefficients for the cut
+        -``cut_constant`` -- the constant for the cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.basic_variables()
+            (x2, x1)
+            sage: v = D.basic_variables()[0]
+            sage: D.make_Gomory_mixed_integer_cut(v, 0)
+            ([-1/3, -2/7], -1)
+
+        """
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        I = self.integer_variables()
+        C = self.continuous_variables()
+        n = len(N)
+
+        A_ith_row = self.row_coefficients(choose_variable)
+        f = [ A_ith_row[i] - A_ith_row[i].floor() for i in range (n)]
+        f_0 = b[index] - b[index].floor()
+
+        #make dictionaries to update f and the ith row of matrix A
+        #with the right orders
+        #first in integer variables, then in continuous variables
+        variables = list(I) + list(C)
+        set_N = set(N)
+        N_in_IC_order = [item for item in variables if item in set_N]
+        f_dic = {item: coef for item, coef in zip(N, f)}
+        new_f = [f_dic[item] for item in N_in_IC_order]
+        A_ith_row_dic = {item: coef for item, coef in zip(N, A_ith_row)}
+        new_A_ith_row = [A_ith_row_dic[item] for item in N_in_IC_order]
+
+        cut_coefficients = [0] * n
+        j = 0
+        for item in I:
+            if item in set_N:
+                f_j = new_f[j]
+                if f_j <= f_0:
+                    cut_coefficients[j] -=  f_j / f_0
+                else:
+                    cut_coefficients[j] -= (1 - f_j) / (1 - f_0)
+                j += 1
+        for item in C:
+            if item in set_N:
+                a_j = new_A_ith_row[j]
+                if a_j >= 0:
+                    cut_coefficients[j] -= a_j / f_0
+                else:
+                    cut_coefficients[j] += a_j / (1 - f_0)
+                j += 1
+        cut_constant = -1
+
+        #update cut_coefficients in the original order in self._nonbasic_variable
+        cut_coef_dic = {item: coef for item, coef in zip(N_in_IC_order, cut_coefficients)}
+        new_cut_coefficients = [cut_coef_dic[item] for item in list(N) if item in set(N_in_IC_order)]
+
+        return new_cut_coefficients, cut_constant
+
+    def pick_eligible_source_row(self, cut_generating_function_separator=None,
+                                    basic_variable=None):
+        r"""
+        Pick an eligible source row for ``self``
+
+        INPUT:
+
+        -``cut_generating_function_separator``-- (default: None) a string indicating
+        the cut generating function separator
+        -``basic_variable`` -- (default: None) a string specifying
+        the basic variable that will provide the source row for the cut
+
+        OUTPUT:
+
+        -``choose_variable`` -- the basic variable for the chosen cut
+        -``index`` -- an integer indicating the choose_variable's index in
+        self.constant_terms()
+
+        EXAMPLES::
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: D.basic_variables()
+            (x2, x1)
+            sage: D.integer_variables()
+            {x1, x2, x3, x4}
+            sage: D.constant_terms()
+            (33/10, 13/10)
+
+        None of the variables are continuous, and the constant term of x2 is not an integer
+        Therefore, the row for x2 is an eligible source row
+
+            sage: D.pick_eligible_source_row(cut_generating_function_separator="gomory_fractional")
+            (x2, 0)
+
+        See the method add_a_cut for examples in ineligible source rows
+        """
+        B = self.basic_variables()
+        list_B = list(B)
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        n = len(N)
+        m = len(B)
+        integer_variables = self.integer_variables()
+
+        def eligible_source_row(choose_variable, bi=None,
+            cut_generating_function_separator=cut_generating_function_separator):
+            if cut_generating_function_separator == "gomory_fractional":
+                A_ith_row = self.row_coefficients(choose_variable)
+                for i in range (n):
+                    if (N[i] not in integer_variables) and (A_ith_row[i] != 0):
+                        return False
+            #If the choose_variable is integer and its constant is also integer
+            #then there is no need for a cut
+            if (not choose_variable in integer_variables) or (bi is not None and bi.is_integer()):
+                return False
+            return True
+
+        integer_basic_variables = integer_variables.intersection(set(B))
+        if all(b[list_B.index(variable)].is_integer() for variable in integer_basic_variables):
+            raise ValueError("the solution of the integer basic variables are all integer, \
+                there is no way to add a cut")
+        if basic_variable != None:
+            choose_variable= variable(self.coordinate_ring(), basic_variable)
+            if choose_variable not in integer_variables:
+                raise ValueError("chosen variable should be an integer variable")
+            if not eligible_source_row(choose_variable, bi=None):
+                raise ValueError("this is not an eligible source row")
+            index = list_B.index(choose_variable)
+        else:
+            fraction_list = [abs(b[i]- b[i].floor() - 0.5) for i in range (m)]
+            variable_list = copy(list_B)
+            while True:
+                temp_index = fraction_list.index(min(fraction_list))
+                #temp index will change as long as we remove the variable of the
+                #ineglible source row from the fraction list and the variable lsit
+                choose_variable = variable_list[temp_index]
+                index = list_B.index(choose_variable)
+                #index wil not change, since we don't modify the list of basic variables
+                if eligible_source_row(choose_variable, b[index]):
+                    break
+                fraction_list.remove(min(fraction_list))
+                variable_list.remove(choose_variable)
+                if not fraction_list:
+                    raise ValueError("there does not exist an eligible source row")
+        return choose_variable, index
+
     def possible_dual_simplex_method_steps(self):
         r"""
         Return possible dual simplex method steps for ``self``.
@@ -3356,6 +3696,77 @@ class LPAbstractDictionary(SageObject):
 
         """
         raise NotImplementedError
+
+    def run_cutting_plane_algorithm(self, plot_cuts=False,
+                xmin=None, xmax=None, ymin=None, ymax=None,
+                cut_generating_function_separator=None):
+        r"""
+        Perform the cutting plane method to solve a ILP problem.
+
+        The problem variables may not be the same as the nonbasic
+        variables of the dictionary. To see the plot based on the original
+        variables, one had better choose self to be a LPRevisedDictionary
+        object rather than a LPDictionary object.
+        INPUT:
+
+        -``plot_cuts`` -- (default:False) a boolean value to decide whether
+        plot the cuts or not
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
+        -``cut_generating_function_separator``-- (default: None) a string indicating
+        the cut generating function separator
+
+
+        OUTPUT:
+
+        -a number which is the total number of cuts need to solve a
+        ILP problem by Gomory fractional Cut
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c,
+            ....: integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
+            ....: cut_generating_function_separator="gomory_fractional")
+            sage: number_of_cuts
+            5
+            sage: from sage.numerical.interactive_simplex_method \
+            ....:     import form_thin_long_triangle
+            sage: A1, b1 = form_thin_long_triangle(4)
+            sage: c = (-1/27, 1/31)
+            sage: P = InteractiveLPProblemStandardForm(A1, b1, c, integer_variables=True)
+            sage: D = P.final_dictionary()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
+            ....: cut_generating_function_separator="gomory_fractional")
+            sage: number_of_cuts
+            9
+            sage: P1 = InteractiveLPProblemStandardForm(A1, b1, c,
+            ....: integer_variables=True)
+            sage: D = P1.final_revised_dictionary()
+            sage: number_of_cuts = D.run_cutting_plane_algorithm(plot_cuts=False,
+            ....: cut_generating_function_separator="gomory_fractional" )
+            sage: number_of_cuts
+            9
+
+
+        """
+        number_of_cuts = 0
+        while True:
+            self.add_a_cut(cut_generating_function_separator=cut_generating_function_separator)
+            self.run_dual_simplex_method()
+            b = self.constant_terms()
+            number_of_cuts += 1
+            if all(i.is_integer() for i in b):
+                break
+        if plot_cuts:
+            result = self.plot(number_of_cuts=number_of_cuts,
+                    xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+            result.show()
+        return number_of_cuts
 
     def run_dual_simplex_method(self):
         r"""
@@ -3980,7 +4391,6 @@ class LPDictionary(LPAbstractDictionary):
         self._AbcvBNz[3] += ce * b[l]
         self._entering = None
         self._leaving = None
-
 
 def random_dictionary(m, n, bound=5, special_probability=0.2):
     r"""
@@ -5009,6 +5419,37 @@ class LPRevisedDictionary(LPAbstractDictionary):
         self._x_B[self._x_B.list().index(self._leaving)] = self._entering
         self._entering = None
         self._leaving = None
+
+    def visualize_cut(self, xmax, xmin, ymax, ymin, number_of_cuts):
+        r"""
+
+        Return the plot of the problem for the revised dictionary and the new cut
+
+        OUTPUT:
+
+        - a plot
+
+        """
+        self.add_a_cut()
+        self.run_dual_simplex_method()
+        problem = self._problem
+        m = problem.m()
+        A, b, c, x = problem.Abcx()
+        ieqs = [(xmax, -1, 0), (- xmin, 1, 0),
+            (ymax, 0, -1), (- ymin, 0, 1)]
+        box = Polyhedron(ieqs=ieqs)
+        bi = list(b)[m-1]
+        Ai = list(A.rows()[m-1])
+        ri = list(problem._constraint_types)[m-1]
+        eqns = [[-bi] + Ai]
+        cut = Polyhedron(eqns=eqns)
+        cut_line = cut.intersection(box)
+        vertices = cut_line.vertices_list()
+        label = "cut" + str(number_of_cuts)
+        label = label + " " + r"${}$".format(_latex_product(Ai, x, " ", tail=[ri, bi]))
+        result = line(vertices, color=list(colors)[number_of_cuts*2],
+                        legend_label=label, thickness=1.5)
+        return result
 
     def y(self):
         r"""

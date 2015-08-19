@@ -2662,6 +2662,17 @@ class LPAbstractDictionary(SageObject):
         """
         return "LP problem dictionary (use typeset mode to see details)"
 
+    def add_row(self):
+        r"""
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        an indicated basic variable that provides the source row and a variable name
+        for a new slack variable
+
+        See add_row() in LPDictionary and LPRevisedDictionary for reference.
+
+        """
+        raise NotImplementedError
+
     def all_variables(self):
         r"""
         Return a set of all variables of self
@@ -3654,6 +3665,72 @@ class LPDictionary(LPAbstractDictionary):
             lines[l] = line
         return  "\n".join(lines)
 
+    def add_row(self, nonbasic_coefficients, constant, slack_variable, integer_slack_variable=False):
+        r"""
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        an indicated basic variable that provides the source row and a variable name
+        for a new slack variable
+
+        INPUT:
+
+        -``nonbasic_coefficients``-- a list of the coefficients for the new row
+        -``constant``-- a number of the constant term for the new row
+        -``slack_variable``-- a string of the name for the new slack variable
+        -``integer_slack_variable``-- (default: False) a boolean value indicating if the new
+        slack variable is integer or not.
+
+        OUTPUT:
+
+        - none, but the dictionary will be updated with an added row
+
+        EXAMPLES::
+
+            sage: A = ([-1, 1], [8, 2])
+            sage: b = (2, 17)
+            sage: c = (55/10, 21/10)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: D = P.final_dictionary()
+            sage: D.add_row([7, 11], 42, 'c', integer_slack_variable=True)
+            sage: D.row_coefficients("c")
+            (7, 11)
+            sage: D.constant_terms()[2]
+            42
+            sage: D.basic_variables()[2]
+            c
+            sage: D.integer_variables()
+            {c}
+        """
+
+        B = self.basic_variables()
+        N = self.nonbasic_variables()
+        b = self.constant_terms()
+        n = len(N)
+        m = len(B)
+        A = tuple([self.row_coefficients(B[i]) for i in range (m)])
+        A = matrix(self.base_ring(), A)
+
+        v = vector(self.base_ring(), n, nonbasic_coefficients)
+        A = A.stack(v)
+
+        b = vector(tuple(b) + (constant,))
+        B = tuple(B) + (slack_variable,)
+
+        #Construct a larger ring for variable
+        R = B[0].parent()
+        G = list(R.gens())
+        G.append(slack_variable)
+        R = PolynomialRing(self.base_ring(), G, order="neglex")
+        #Update B and N to the larger ring
+        B2 = vector([ R(x) for x in B])
+        N2 = vector([ R(x) for x in N])
+
+        self._AbcvBNz[0] = matrix(QQ, A)
+        self._AbcvBNz[1] = b
+        self._AbcvBNz[4] = B2
+        self._AbcvBNz[5] = N2
+        if integer_slack_variable:
+            self._integer_variables.add(variable(R, slack_variable))
+
     def basic_variables(self):
         r"""
         Return the basic variables of ``self``.
@@ -4251,6 +4328,128 @@ class LPRevisedDictionary(LPAbstractDictionary):
         lines.append(r"\end{array}")
         bottom = "\n".join(lines)
         return _assemble_arrayl([top, "", bottom], 1.5)
+
+    def add_row(self, nonbasic_coefficients, constant, slack_variable, integer_slack_variable=True):
+        r"""
+        Update a dictionary with an additional row based on a given dictionary, the index of
+        an indicated basic variable that provides the source row and a variable name
+        for a new slack variable
+
+        INPUT:
+
+        -``nonbasic_coefficients``-- a list of the coefficients for the new row
+        -``constant``-- a number of the constant term for the new row
+        -``slack_variable``-- a string of the name for the new slack variable
+        -``integer_slack_variable``-- (default: False) a boolean value indicating if the new slack
+          variable is integer or not.
+
+        OUTPUT:
+
+        - none, but the revised dictionary will be updated with an added row
+
+        TESTS:
+
+        Tested with a variety of different bases::
+
+            sage: A = ([-1, 1111, 3, 17], [8, 222, 7, 6], [3, 7, 17, 5], [9, 5, 7, 3])
+            sage: b = (2, 17, 11, 27)
+            sage: c = (5/133, 1/10, 1/18, 47/3)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.Abcx()[3]
+            (x1, x2, x3, x4)
+            sage: D = P.final_revised_dictionary()
+            sage: D.nonbasic_variables()
+            (x2, x3, x5, x6)
+            sage: D.add_row([7, 11, 13, 9], 42, 'c')
+            sage: D.row_coefficients("c")
+            (7, 11, 13, 9)
+            sage: D.constant_terms()[4]
+            42
+            sage: D.basic_variables()[4]
+            c
+            sage: A = ([-9, 7, 48, 31, 23], [5, 2, 9, 13, 98], \
+            ....:   [14, 15, 97, 49, 1], [9, 5, 7, 3, 17], [119, 7, 121, 5, 111])
+            sage: b = (33, 27, 1, 272, 61)
+            sage: c = (51/133, 1/100, 149/18, 47/37, 13/17)
+            sage: P = InteractiveLPProblemStandardForm(A, b, c)
+            sage: P.Abcx()[3]
+            (x1, x2, x3, x4, x5)
+            sage: D = P.final_revised_dictionary()
+            sage: D.nonbasic_variables()
+            (x1, x2, x4, x7, x8)
+            sage: D.add_row([5 ,7, 11, 13, 9], 99, 'c', integer_slack_variable=True)
+            sage: D.row_coefficients("c")
+            (5, 7, 11, 13, 9)
+            sage: D.constant_terms()[5]
+            99
+            sage: D.basic_variables()[5]
+            c
+            sage: D.integer_variables()
+            {c}
+        """
+
+        basic = self.basic_variables()
+        nonbasic = self.nonbasic_variables()
+
+        new_basic_variables = tuple(basic) + (slack_variable,)
+
+        #Construct a larger ring for variable
+        R = basic[0].parent()
+        G = list(R.gens())
+        G.append(slack_variable)
+        R = PolynomialRing(self.base_ring(), G, order="neglex")
+
+        #Update B to the larger ring
+        new_basic = vector([ R(x) for x in new_basic_variables])
+
+        problem = self._problem
+        A = problem.Abcx()[0]
+        b = problem.Abcx()[1]
+        c = problem.Abcx()[2]
+        original = list(problem.Abcx()[3])
+        slack = list(problem.slack_variables())
+        variables = original + slack
+        n = len(original)
+        m = len(slack)
+        set_nonbasic = set(nonbasic)
+
+        #update nonbasic_coefficients with the right orders in original and slack variables
+        dic = {item: coef for item, coef in zip(nonbasic, nonbasic_coefficients)}
+        new_nonbasic_coef= [dic[item] for item in variables if item in set_nonbasic]
+        d = new_nonbasic_coef   #rename new_nonbasic_coef to d
+        new_row = vector(QQ, [0] * n)
+        new_b = constant
+
+        def standard_unit_vector(index, length):
+            v = vector(QQ, [0] * length)
+            v[index] = 1
+            return v
+
+        d_index = 0
+        original_index = 0
+        slack_index = 0
+        for item in original:
+            if item in set_nonbasic:
+                new_row += d[d_index] * standard_unit_vector(original_index, n)
+                d_index +=1
+            original_index += 1
+        for item in slack:
+            if item in set_nonbasic:
+                new_row -= d[d_index] * A[slack_index]
+                new_b -= d[d_index] * b[slack_index]
+                d_index += 1
+            slack_index += 1
+
+        A = A.stack(new_row)
+        b = vector(tuple(b) + (new_b,))
+        if integer_slack_variable:
+            self._integer_variables.add(variable(R, slack_variable))
+        new_problem = InteractiveLPProblemStandardForm(A, b, c, integer_variables=self.integer_variables())
+        self._problem = new_problem
+        self._x_B = new_basic
+        B = self.B()
+        self._B_inverse = B.inverse()
+
 
     def A(self, v):
         r"""

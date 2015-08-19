@@ -2082,8 +2082,7 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
 
             - an optimal dictionary with the :meth:`auxiliary_variable` among
               :meth:`~LPRevisedDictionary.basic_variables` and a non-zero
-              optimal value indicating
-              that ``self`` is infeasible;
+              optimal value indicating that ``self`` is infeasible;
 
             - a non-optimal dictionary that has marked entering
               variable for which there is no choice of the leaving variable,

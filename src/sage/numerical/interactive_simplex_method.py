@@ -618,7 +618,7 @@ class InteractiveLPProblem(SageObject):
 
     - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving
-      some problem variables' names, where those problem variables are integer.
+      some problem variables' names, where those problem variables are integer–
 
     EXAMPLES:
 
@@ -671,7 +671,8 @@ class InteractiveLPProblem(SageObject):
             sage: P = InteractiveLPProblem(A, b, c, ["C", "B"], variable_type=">=")
             sage: TestSuite(P).run()
 
-        Test for the sufficient conditions for integer slack variables
+        Examples for the sufficient conditions for integer slack variables::
+
             sage: P = InteractiveLPProblem(A, b, c)
             sage: P.integer_variables()
             set()
@@ -687,13 +688,11 @@ class InteractiveLPProblem(SageObject):
             sage: P.integer_variables()
             {x1, x2}
 
-        Allow the user to choose integer slack variables which may violate the sufficient
-        conditions
+        Allow the user to choose integer slack variables which may violate the sufficient conditions::
+
             sage: P = InteractiveLPProblem(A, b, c, integer_variables={'x1', 'x2', 'x3'})
             sage: P.integer_variables()
             {x1, x2, x3}
-
-
         """
         super(InteractiveLPProblem, self).__init__()
         A = matrix(A)
@@ -961,7 +960,11 @@ class InteractiveLPProblem(SageObject):
 
     def all_variables(self):
         r"""
-        Return a set of all variables of self
+        Return a set of all variables of ``self``.
+
+        OUTPUT:
+
+        - a set of variables
 
         EXAMPLES::
 
@@ -1051,9 +1054,14 @@ class InteractiveLPProblem(SageObject):
 
     def continuous_variables(self):
         r"""
-        Return a set of continuous variables of self
+        Return a set of continuous variables of ``self``.
+
+        OUTPUT:
+
+        - a set of variables
 
         EXAMPLES::
+
             sage: A = ([1, 2, 1], [3, 1, 5])
             sage: b = (1000, 1500)
             sage: c = (10, 5, 7)
@@ -1201,8 +1209,7 @@ class InteractiveLPProblem(SageObject):
 
     def get_plot_bounding_box(self, F, b, xmin=None, xmax=None, ymin=None, ymax=None):
         r"""
-
-        Return the min and max for x and y of the bounding box for the plot
+        Return the min and max for x and y of the bounding box for ``self``.
 
         INPUT:
 
@@ -1211,6 +1218,9 @@ class InteractiveLPProblem(SageObject):
         - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
 
+        OUTPUT:
+
+        - four rational numbers
         """
         if ymax is None:
             ymax = max(map(abs, b) + [v[1] for v in F.vertices()])
@@ -1225,8 +1235,7 @@ class InteractiveLPProblem(SageObject):
 
     def integer_variables(self):
         r"""
-
-        Return the set of integer variables of self
+        Return the set of integer variables of ``self``.
 
         EXAMPLES:
 
@@ -1239,7 +1248,6 @@ class InteractiveLPProblem(SageObject):
             sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1'})
             sage: P.integer_variables()
             {x1}
-
         """
         return self._integer_variables
 
@@ -1421,14 +1429,16 @@ class InteractiveLPProblem(SageObject):
 
         - a plot
 
-        This only works for problems with two decision variables. On the plot
-        the black arrow indicates the direction of growth of the objective. The
-        lines perpendicular to it are level curves of the objective. If there
-        are optimal solutions, the arrow originates in one of them and the
-        corresponding level curve is solid: all points of the feasible set
-        on it are optimal solutions. Otherwise the arrow is placed in the
-        center. If the problem is infeasible or the objective is zero, a plot
-        of the feasible set only is returned.
+        .. NOTE::
+
+            This only works for problems with two decision variables. On the plot
+            the black arrow indicates the direction of growth of the objective. The
+            lines perpendicular to it are level curves of the objective. If there
+            are optimal solutions, the arrow originates in one of them and the
+            corresponding level curve is solid: all points of the feasible set
+            on it are optimal solutions. Otherwise the arrow is placed in the
+            center. If the problem is infeasible or the objective is zero, a plot
+            of the feasible set only is returned.
 
         EXAMPLES::
 
@@ -1440,11 +1450,10 @@ class InteractiveLPProblem(SageObject):
             sage: p.show()
 
         In this case the plot works better with the following axes ranges::
-
             sage: p = P.plot(0, 1000, 0, 1500)
             sage: p.show()
 
-        TESTS:
+        TESTS::
 
         We check that zero objective can be dealt with::
 
@@ -1462,27 +1471,31 @@ class InteractiveLPProblem(SageObject):
     def plot_constraint_or_cut(self, Ai, bi, ri, color, box, x, alpha,
                                 pad=None, ith_cut=None):
         r"""
-
-        Return a plot of the constraint or cut of self
-
-
+        Return a plot of the constraint or cut of ``self``.
 
         INPUT:
 
         - ``Ai`` -- the coefficients for the constraint or cut
+        
         - ``bi`` -- the constant for the constraint or cut
+        
         - ``ri`` -- a string indicating the type for the constraint or cut
+        
         - ``color`` -- a color
+        
         - ``box`` -- a bounding box for the plot
+        
         - ``x`` -- the problem variables of the problem
+        
         - ``alpha`` -- determines how opaque are shadows
+        
         - ``pad`` -- an integer
+        
         - ``ith_cut`` -- an integer indicating the order of the cut
 
         OUTPUT:
 
         - a plot
-
         """
         border = box.intersection(Polyhedron(eqns=[[-bi] + list(Ai)]))
         vertices = border.vertices()
@@ -1523,11 +1536,13 @@ class InteractiveLPProblem(SageObject):
 
         - a plot
 
-        This only works for a problem with two decision variables. The plot
-        shows boundaries of constraints with a shadow on one side for
-        inequalities. If the :meth:`feasible_set` is not empty and at least
-        part of it is in the given boundaries, it will be shaded gray and `F`
-        will be placed in its middle.
+        .. NOTE::
+
+            This only works for a problem with two decision variables. The plot
+            shows boundaries of constraints with a shadow on one side for
+            inequalities. If the :meth:`feasible_set` is not empty and at least
+            part of it is in the given boundaries, it will be shaded gray and `F`
+            will be placed in its middle.
 
         EXAMPLES::
 
@@ -1600,19 +1615,18 @@ class InteractiveLPProblem(SageObject):
 
     def plot_lines(self, F, integer_variable):
         r"""
-
-        Return the plot of lines (either vertical or horizontal) on an interval
+        Return the plot of lines (either vertical or horizontal) on an interval.
 
         INPUT:
 
         -``F`` -- the feasible set of self
+
         -``integer_variable`` -- a string of name of a basic integer variable
         indicating to plot vertical lines or horizontal lines
 
         OUTPUT:
 
         - a plot
-
         """
         b = self.b()
         xmin, xmax, ymin, ymax = self.get_plot_bounding_box(F, b,
@@ -1636,21 +1650,24 @@ class InteractiveLPProblem(SageObject):
     def plot_objective_growth_and_solution(self, FP, c,
                     xmin=None, xmax=None, ymin=None, ymax=None):
         r"""
+        Return a plot with the growth of the objective function and the objective solution. 
 
-        Return a plot with the growth of the objective function and the objective
-        solution. For more information, refer to the docstrings of the plot method.
+        ..Note::
+
+            For more information, refer to the docstrings of :meth:`plot`.
 
         INPUT:
 
-        - ``FP`` -- the plot of the feasbiel set of self
-        - ``c`` -- the objective value of self
+        - ``FP`` -- the plot of the feasbiel set of ``self``
+
+        - ``c`` -- the objective value of ``self``
+        
         - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
 
         OUTPUT:
 
         - a plot
-
         """
         b = self.b()
         xmin, xmax, ymin, ymax = self.get_plot_bounding_box(self.feasible_set(), b,
@@ -1682,21 +1699,23 @@ class InteractiveLPProblem(SageObject):
 
     def plot_variables(self, F, x, box, colors, pad, alpha):
         r"""
-
-        Return a plot of the problem variables of self
+        Return a plot of the problem variables of ``self``
 
         INPUT:
 
-        - ``F`` -- the feasible set of self
-        - ``x`` -- the problem variables of self
+        - ``F`` -- the feasible set of ``self``
+
+        - ``x`` -- the problem variables of ``self``
+        
         - ``colors`` -- gives a list of color
-        - ``pad`` -- a number determined by xmin, xmax, ymin, ymax in the plot method
+        
+        - ``pad`` -- a number determined by xmin, xmax, ymin, ymax in :meth::`plot`
+        
         - ``alpha`` -- determines how opaque are shadows
 
         OUTPUT:
 
         - a plot
-
         """
         if self.n() != 2:
             raise ValueError("only problems with 2 variables can be plotted")
@@ -1940,7 +1959,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: TestSuite(P).run()
 
-        Test for the sufficient conditions for integer slack variables
+        Examples for the sufficient conditions for integer slack variables::
+
             sage: P = InteractiveLPProblemStandardForm(A, b, c)
             sage: P.integer_variables()
             set()
@@ -1957,7 +1977,8 @@ class InteractiveLPProblemStandardForm(InteractiveLPProblem):
             {x1, x2}
 
         Allow the user to choose integer slack variables which may violate the sufficient
-        conditions
+        conditions::
+
             sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables={'x1', 'x2', 'x3'})
             sage: P.integer_variables()
             {x1, x2, x3}
@@ -2691,28 +2712,30 @@ class LPAbstractDictionary(SageObject):
     def add_a_cut(self, cut_generating_function_separator=None,
                 basic_variable=None, new_slack_variable=None):
         r"""
-
-        Update the dictionary by adding a Gomory fractional cut
+        Update the dictionary by adding a Gomory fractional cut.
 
         INPUT:
 
-        -``cut_generating_function_separator``-- (default: None) a string indicating
+        - ``cut_generating_function_separator``-- (default: None) a string indicating
         the cut generating function separator
-        -``basic_variable`` -- (default: None) a string specifying
-        the basic variable that will provide the source row for the cut.
-        -``new_slack_variable`` --(default: None) a string giving
+
+        - ``basic_variable`` -- (default: None) a string specifying
+        the basic variable that will provide the source row for the cut
+
+        - ``new_slack_variable`` -- (default: None) a string giving
         the name of the new_slack_variable. If the argument is none,
-        the new slack variable will be the "xn" where n is
+        the new slack variable will be the `x_n` where n is
         the next index of variable list.
 
         OUTPUT:
 
-        -none, but the dictionary will be updated with an additional
+        - none, but the dictionary will be updated with an additional
         row that is constructed from a Gomory fractional cut, while the
         source row can be chosen by the user or picked by the most
         fractional basic variable
 
         EXAMPLES::
+
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
@@ -2727,8 +2750,8 @@ class LPAbstractDictionary(SageObject):
             sage: D.constant_terms()
             (33/10, 13/10, -3/10)
 
-        add_a_cut refuses making a cut if the basic variable of the source row
-        is not an integer
+        :meth:`add_a_cut` refuses making a cut if the basic variable of the source row
+        is not an integer::
 
             sage: b = (2/10, 17)
             sage: P = InteractiveLPProblemStandardForm(A, b, c, integer_variables=True)
@@ -2742,8 +2765,8 @@ class LPAbstractDictionary(SageObject):
             ValueError: chosen variable should be an integer variable
 
 
-        add_a_cut also refuses making a Gomory fractional cut if a non-integer
-        variable is among the non-basic variables with non-zero coefficients
+        :meth:`add_a_cut` add_a_cut also refuses making a Gomory fractional cut if a non-integer 
+        variable is among the non-basic variables with non-zero coefficients::
 
             sage: A = ([1, 3, 5], [2, 6, 9], [6, 8, 3])
             sage: b = (12/10, 23/10, 31/10)
@@ -2758,9 +2781,8 @@ class LPAbstractDictionary(SageObject):
             sage: D.row_coefficients("x3")
             (-1/27, 10/27, 2/9)
 
-        If the user chooses x3 to provide the source row, add_a_cut
-        will give an error, because the non-integer variable x6
-        has a non-zero coefficient 1/27 on the source row
+        If the user chooses `x_3` to provide the source row, :meth:`add_a_cut` will give an error, 
+        because the non-integer variable `x_6` has a non-zero coefficient `1/27` on the source row::
 
             sage: D.add_a_cut(basic_variable='x3',
             ....: cut_generating_function_separator="gomory_fractional")
@@ -2769,18 +2791,18 @@ class LPAbstractDictionary(SageObject):
             ValueError: this is not an eligible source row
 
         We cannot add a Gomory fractional cut to this dictionary, because
-        the non-integer variable x6 has non-zero coefficient on each row
+        the non-integer variable `x_6` has non-zero coefficient on each row::
 
             sage: D.add_a_cut(cut_generating_function_separator="gomory_fractional")
             Traceback (most recent call last):
             ...
             ValueError: there does not exist an eligible source row
 
-        However, the previous condition is not necessary for Gomory mixed integer cuts
+        However, the previous condition is not necessary for Gomory mixed integer cuts::
+
             sage: D.add_a_cut(cut_generating_function_separator="gomory_mixed_integer")
             sage: D.basic_variables()
             (x3, x5, x1, x7)
-
         """
         choose_variable, index= self.pick_eligible_source_row(basic_variable=basic_variable,
                             cut_generating_function_separator=cut_generating_function_separator)
@@ -2806,20 +2828,22 @@ class LPAbstractDictionary(SageObject):
 
     def add_row(self):
         r"""
-        Update a dictionary with an additional row based on a given dictionary, the index of
-        an indicated basic variable that provides the source row and a variable name
-        for a new slack variable
+        Update a dictionary with an additional row based on a given dictionary.
 
-        See add_row() in LPDictionary and LPRevisedDictionary for reference.
-
+        See :meth:`add_row` in :class:`LPDictionary` and :class:`LPRevisedDictionary` for documentation.
         """
         raise NotImplementedError
 
     def all_variables(self):
         r"""
-        Return a set of all variables of self
+        Return a set of all variables of ``self``.
+
+        OUTPUT:
+
+        - a set of variables
 
         EXAMPLES::
+
             sage: A = ([1, 2, 1], [3, 1, 5])
             sage: b = (1000, 1500)
             sage: c = (10, 5, 7)
@@ -2904,8 +2928,7 @@ class LPAbstractDictionary(SageObject):
         r"""
         Return the basic variables of ``self``.
 
-        See basic_variables() in LPDictionary and LPRevisedDictionary for reference.
-
+        See :meth:`basic_variables` in :class:`LPDictionary` and :class:`LPRevisedDictionary` for documentation.
         """
         raise NotImplementedError
 
@@ -2913,17 +2936,20 @@ class LPAbstractDictionary(SageObject):
         r"""
         Return constant terms in the relations of ``self``.
 
-        See constant_terms() in LPDictionary and LPRevisedDictionary for reference.
-
+        See :meth:`constant_terms` in :class:`LPDictionary` and :class:`LPRevisedDictionary` for documentation.
         """
-
         raise NotImplementedError
 
     def continuous_variables(self):
         r"""
-        Return a set of continuous variables of self
+        Return a set of continuous variables of ``self``.
+
+        OUTPUT:
+
+        - a set of variables
 
         EXAMPLES::
+
             sage: A = ([1, 2, 1], [3, 1, 5])
             sage: b = (1000, 1500)
             sage: c = (10, 5, 7)
@@ -3126,8 +3152,7 @@ class LPAbstractDictionary(SageObject):
 
     def integer_variables(self):
         r"""
-
-        Return the set of integer variables of self
+        Return the set of integer variables of ``self``.
 
         EXAMPLES:
 
@@ -3142,7 +3167,6 @@ class LPAbstractDictionary(SageObject):
             sage: D = P.final_revised_dictionary()
             sage: D.integer_variables()
             {x1}
-
         """
         return self._integer_variables
 
@@ -3308,13 +3332,16 @@ class LPAbstractDictionary(SageObject):
         Return the coefficients and constant for a Gomory fractional cut
 
         INPUT:
-        -``choose_variable`` -- the basic variable for the chosen cut
-        -``index`` -- an integer indicating the choose_variable's index in
-        self.constant_terms()
+
+        - ``choose_variable`` -- the basic variable for the chosen cut
+
+        - ``index`` -- an integer indicating the choose_variable's index in :meth:`constant_terms`
 
         OUTPUT:
-        -``cut_coefficients`` -- a list of coefficients for the cut
-        -``cut_constant`` -- the constant for the cut
+
+        - ``cut_coefficients`` -- a list of coefficients for the cut
+        
+        - ``cut_constant`` -- the constant for the cut
 
         EXAMPLES::
 
@@ -3328,7 +3355,6 @@ class LPAbstractDictionary(SageObject):
             sage: v = D.basic_variables()[0]
             sage: D.make_Gomory_fractional_cut(v, 0)
             ([-1/10, -4/5], -3/10)
-
         """
         b = self.constant_terms()
         n = len(self.nonbasic_variables())
@@ -3343,13 +3369,16 @@ class LPAbstractDictionary(SageObject):
         Return the coefficients and constant a Gomory fractional cut
 
         INPUT:
-        -``choose_variable`` -- the basic variable of the chosen cut
-        -``index`` -- an integer indicating the choose_variable's index in
-        self.constant_terms()
+
+        - ``choose_variable`` -- the basic variable of the chosen cut
+
+        - ``index`` -- an integer indicating the choose_variable's index in :meth:`constant_terms` 
 
         OUTPUT:
-        -``cut_coefficients`` -- a list of coefficients for the cut
-        -``cut_constant`` -- the constant for the cut
+
+        - ``cut_coefficients`` -- a list of coefficients for the cut
+        
+        - ``cut_constant`` -- the constant for the cut
 
         EXAMPLES::
 
@@ -3363,7 +3392,6 @@ class LPAbstractDictionary(SageObject):
             sage: v = D.basic_variables()[0]
             sage: D.make_Gomory_mixed_integer_cut(v, 0)
             ([-1/3, -2/7], -1)
-
         """
         N = self.nonbasic_variables()
         b = self.constant_terms()
@@ -3412,25 +3440,26 @@ class LPAbstractDictionary(SageObject):
 
         return new_cut_coefficients, cut_constant
 
-    def pick_eligible_source_row(self, cut_generating_function_separator=None,
-                                    basic_variable=None):
+    def pick_eligible_source_row(self, cut_generating_function_separator=None, basic_variable=None):
         r"""
-        Pick an eligible source row for ``self``
+        Pick an eligible source row for ``self``.
 
         INPUT:
 
-        -``cut_generating_function_separator``-- (default: None) a string indicating
+        - ``cut_generating_function_separator``-- (default: None) a string indicating
         the cut generating function separator
-        -``basic_variable`` -- (default: None) a string specifying
-        the basic variable that will provide the source row for the cut
+
+        - ``basic_variable`` -- (default: None) a string specifying the basic variable 
+        that will provide the source row for the cut
 
         OUTPUT:
 
-        -``choose_variable`` -- the basic variable for the chosen cut
-        -``index`` -- an integer indicating the choose_variable's index in
-        self.constant_terms()
+        - ``choose_variable`` -- the basic variable for the chosen cut
+        
+        - ``index`` -- an integer indicating the choose_variable's index in :meth:`constant_terms`
 
         EXAMPLES::
+
             sage: A = ([-1, 1], [8, 2])
             sage: b = (2, 17)
             sage: c = (55/10, 21/10)
@@ -3443,13 +3472,13 @@ class LPAbstractDictionary(SageObject):
             sage: D.constant_terms()
             (33/10, 13/10)
 
-        None of the variables are continuous, and the constant term of x2 is not an integer
-        Therefore, the row for x2 is an eligible source row
+        None of the variables are continuous, and the constant term of `x_2` is not an integer.
+        Therefore, the row for x2 is an eligible source row::
 
             sage: D.pick_eligible_source_row(cut_generating_function_separator="gomory_fractional")
             (x2, 0)
 
-        See the method add_a_cut for examples in ineligible source rows
+        See :meth:`add_a_cut` for examples in ineligible source rows
         """
         B = self.basic_variables()
         list_B = list(B)
@@ -3459,7 +3488,7 @@ class LPAbstractDictionary(SageObject):
         m = len(B)
         integer_variables = self.integer_variables()
 
-        def eligible_source_row(choose_variable, bi=None,
+        def eligible_source_row(choose_variable, bi=None, 
             cut_generating_function_separator=cut_generating_function_separator):
             if cut_generating_function_separator == "gomory_fractional":
                 A_ith_row = self.row_coefficients(choose_variable)
@@ -3692,8 +3721,7 @@ class LPAbstractDictionary(SageObject):
         r"""
         Return the coefficients of a given row of the matrix A
 
-        See add_row() in LPDictionary and LPRevisedDictionary for reference.
-
+        See :meth:`add_row` in :class:`LPDictionary` and :class:`LPRevisedDictionary` for reference.
         """
         raise NotImplementedError
 
@@ -3703,23 +3731,28 @@ class LPAbstractDictionary(SageObject):
         r"""
         Perform the cutting plane method to solve a ILP problem.
 
-        The problem variables may not be the same as the nonbasic
-        variables of the dictionary. To see the plot based on the original
-        variables, one had better choose self to be a LPRevisedDictionary
-        object rather than a LPDictionary object.
+        ..NOTE::
+
+            The problem variables may not be the same as the nonbasic
+            variables of the dictionary. To see the plot based on the original
+            variables, one had better choose self to be a LPRevisedDictionary
+            object rather than a LPDictionary object.
+        
         INPUT:
 
-        -``plot_cuts`` -- (default:False) a boolean value to decide whether
+        - ``plot_cuts`` -- (default:False) a boolean value to decide whether
         plot the cuts or not
+        
         - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
-        -``cut_generating_function_separator``-- (default: None) a string indicating
+        
+        - ``cut_generating_function_separator``-- (default: None) a string indicating
         the cut generating function separator
 
 
         OUTPUT:
 
-        -a number which is the total number of cuts need to solve a
+        - a  number which is the total number of cuts need to solve a
         ILP problem by Gomory fractional Cut
 
         EXAMPLES::
@@ -3751,8 +3784,6 @@ class LPAbstractDictionary(SageObject):
             ....: cut_generating_function_separator="gomory_fractional" )
             sage: number_of_cuts
             9
-
-
         """
         number_of_cuts = 0
         while True:
@@ -3901,7 +3932,7 @@ class LPDictionary(LPAbstractDictionary):
 
     - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving
-      some problem variables' names, where those problem variables are integer.
+      some problem variables' names, where those problem variables are integer
 
     OUTPUT:
 
@@ -4078,16 +4109,17 @@ class LPDictionary(LPAbstractDictionary):
 
     def add_row(self, nonbasic_coefficients, constant, slack_variable, integer_slack_variable=False):
         r"""
-        Update a dictionary with an additional row based on a given dictionary, the index of
-        an indicated basic variable that provides the source row and a variable name
-        for a new slack variable
+        Update a dictionary with an additional row based on a given dictionary. 
 
         INPUT:
 
-        -``nonbasic_coefficients``-- a list of the coefficients for the new row
-        -``constant``-- a number of the constant term for the new row
-        -``slack_variable``-- a string of the name for the new slack variable
-        -``integer_slack_variable``-- (default: False) a boolean value indicating if the new
+        - ``nonbasic_coefficients``-- a list of the coefficients for the new row
+        
+        - ``constant``-- a number of the constant term for the new row
+        
+        - ``slack_variable``-- a string of the name for the new slack variable
+        
+        - ``integer_slack_variable``-- (default: False) a boolean value indicating if the new
         slack variable is integer or not.
 
         OUTPUT:
@@ -4111,7 +4143,6 @@ class LPDictionary(LPAbstractDictionary):
             sage: D.integer_variables()
             {c}
         """
-
         B = self.basic_variables()
         N = self.nonbasic_variables()
         b = self.constant_terms()
@@ -4270,24 +4301,25 @@ class LPDictionary(LPAbstractDictionary):
 
     def plot(self, number_of_cuts=0, xmin=None, xmax=None, ymin=None, ymax=None):
         r"""
+        Return a plot of the problem of ``self``.
 
-        Return a plot of the problem of self
+        ..Note::
 
-        The problem variables may not be the same as the nonbasic
-        variables of the dictionary. Therefore, the plot may not be showed
-        correct information for the original problem
+            The problem variables may not be the same as the nonbasic
+            variables of the dictionary. Therefore, the plot may not be showed
+            correct information for the original problem.
 
         INPUT:
 
-        -``number_of_cuts'' -- an integer indicating the number of the cuts
-        made on the original problem
+        - ``number_of_cuts'' -- an integer indicating the number of the cuts
+          made on the original problem
+
         - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
 
         OUTPUT:
 
         - a plot
-
         """
         B = self.basic_variables()
         A = tuple([self.row_coefficients(B[i]) for i in range (len(B))])
@@ -4327,7 +4359,7 @@ class LPDictionary(LPAbstractDictionary):
             sage: D.row_coefficients(1)
             (1/10, -1/5)
 
-        Or variable names without quotes after injecting them::
+        Or use variable names without quotes after injecting them::
 
             sage: P.inject_variables()
             Defining x0, x1, x2, x3, x4
@@ -4448,7 +4480,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving
-      some problem variables' names, where those problem variables are integer.
+      some problem variables' names, where those problem variables are integer
 
     OUTPUT:
 
@@ -4741,16 +4773,17 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     def add_row(self, nonbasic_coefficients, constant, slack_variable, integer_slack_variable=True):
         r"""
-        Update a dictionary with an additional row based on a given dictionary, the index of
-        an indicated basic variable that provides the source row and a variable name
-        for a new slack variable
-
+        Update a dictionary with an additional row based on a given dictionary.
+        
         INPUT:
 
-        -``nonbasic_coefficients``-- a list of the coefficients for the new row
-        -``constant``-- a number of the constant term for the new row
-        -``slack_variable``-- a string of the name for the new slack variable
-        -``integer_slack_variable``-- (default: False) a boolean value indicating if the new slack
+        - ``nonbasic_coefficients``-- a list of the coefficients for the new row
+        
+        - ``constant``-- a number of the constant term for the new row
+        
+        - ``slack_variable``-- a string of the name for the new slack variable
+        
+        - ``integer_slack_variable``-- (default: False) a boolean value indicating if the new slack
           variable is integer or not.
 
         OUTPUT:
@@ -4797,7 +4830,6 @@ class LPRevisedDictionary(LPAbstractDictionary):
             sage: D.integer_variables()
             {c}
         """
-
         basic = self.basic_variables()
         nonbasic = self.nonbasic_variables()
 
@@ -5321,16 +5353,19 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     def plot(self, number_of_cuts=0, xmin=None, xmax=None, ymin=None, ymax=None):
         r"""
-
-        Return the plot of the problem of self
+        Return the plot of the problem of `self`.
 
         INPUT:
 
-        -``number_of_cuts'' -- an integer indicating the number of the cuts
-        made on the original problem
-        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+        - ``number_of_cuts'' -- an integer indicating the number of the cuts
+          made on the original problem
+        
+        -  ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
 
+        OUTPUT:
+
+        - a plot
         """
         return self.problem().plot(number_of_cuts=number_of_cuts,
             xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
@@ -5357,7 +5392,7 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     def row_coefficients(self, v):
         r"""
-        Return the coefficients of a basic variable
+        Return the coefficients of a basic variable.
 
         INPUT:
 
@@ -5422,13 +5457,19 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
     def visualize_cut(self, xmax, xmin, ymax, ymin, number_of_cuts):
         r"""
+        Return the plot of the problem for the revised dictionary and the new cut.
 
-        Return the plot of the problem for the revised dictionary and the new cut
+        INPUT:
+
+        - ``number_of_cuts'' -- an integer indicating the number of the cuts
+          made on the original problem
+        
+        -  ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+          not given, an attempt will be made to pick reasonable values
 
         OUTPUT:
 
         - a plot
-
         """
         self.add_a_cut()
         self.run_dual_simplex_method()

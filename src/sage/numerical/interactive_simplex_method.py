@@ -618,7 +618,7 @@ class InteractiveLPProblem(SageObject):
 
     - ``integer_variables`` -- (default: False) either a boolean value indicating
       if all the problem variables are integer or not, or a set of strings giving
-      some problem variables' names, where those problem variables are integer–
+      some problem variables' names, where those problem variables are integer
 
     EXAMPLES:
 
@@ -1450,10 +1450,9 @@ class InteractiveLPProblem(SageObject):
             sage: p.show()
 
         In this case the plot works better with the following axes ranges::
+
             sage: p = P.plot(0, 1000, 0, 1500)
             sage: p.show()
-
-        TESTS::
 
         We check that zero objective can be dealt with::
 
@@ -2717,22 +2716,22 @@ class LPAbstractDictionary(SageObject):
         INPUT:
 
         - ``cut_generating_function_separator``-- (default: None) a string indicating
-        the cut generating function separator
+          the cut generating function separator
 
         - ``basic_variable`` -- (default: None) a string specifying
-        the basic variable that will provide the source row for the cut
+          the basic variable that will provide the source row for the cut
 
         - ``new_slack_variable`` -- (default: None) a string giving
-        the name of the new_slack_variable. If the argument is none,
-        the new slack variable will be the `x_n` where n is
-        the next index of variable list.
+          the name of the new_slack_variable. If the argument is none,
+          the new slack variable will be the `x_n` where n is
+          the next index of variable list.
 
         OUTPUT:
 
         - none, but the dictionary will be updated with an additional
-        row that is constructed from a Gomory fractional cut, while the
-        source row can be chosen by the user or picked by the most
-        fractional basic variable
+          row that is constructed from a Gomory fractional cut, while the
+          source row can be chosen by the user or picked by the most
+          fractional basic variable
 
         EXAMPLES::
 
@@ -3447,10 +3446,10 @@ class LPAbstractDictionary(SageObject):
         INPUT:
 
         - ``cut_generating_function_separator``-- (default: None) a string indicating
-        the cut generating function separator
+          the cut generating function separator
 
         - ``basic_variable`` -- (default: None) a string specifying the basic variable 
-        that will provide the source row for the cut
+          that will provide the source row for the cut
 
         OUTPUT:
 
@@ -3741,19 +3740,19 @@ class LPAbstractDictionary(SageObject):
         INPUT:
 
         - ``plot_cuts`` -- (default:False) a boolean value to decide whether
-        plot the cuts or not
+          plot the cuts or not
         
         - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
         
         - ``cut_generating_function_separator``-- (default: None) a string indicating
-        the cut generating function separator
+          the cut generating function separator
 
 
         OUTPUT:
 
         - a  number which is the total number of cuts need to solve a
-        ILP problem by Gomory fractional Cut
+          ILP problem by Gomory fractional Cut
 
         EXAMPLES::
 
@@ -4120,7 +4119,7 @@ class LPDictionary(LPAbstractDictionary):
         - ``slack_variable``-- a string of the name for the new slack variable
         
         - ``integer_slack_variable``-- (default: False) a boolean value indicating if the new
-        slack variable is integer or not.
+          slack variable is integer or not.
 
         OUTPUT:
 
@@ -4311,7 +4310,7 @@ class LPDictionary(LPAbstractDictionary):
 
         INPUT:
 
-        - ``number_of_cuts'' -- an integer indicating the number of the cuts
+        - ``number_of_cuts`` -- an integer indicating the number of the cuts
           made on the original problem
 
         - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
@@ -5357,10 +5356,10 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         INPUT:
 
-        - ``number_of_cuts'' -- an integer indicating the number of the cuts
+        - ``number_of_cuts`` -- an integer indicating the number of the cuts
           made on the original problem
         
-        -  ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
 
         OUTPUT:
@@ -5461,10 +5460,10 @@ class LPRevisedDictionary(LPAbstractDictionary):
 
         INPUT:
 
-        - ``number_of_cuts'' -- an integer indicating the number of the cuts
+        - ``number_of_cuts`` -- an integer indicating the number of the cuts
           made on the original problem
         
-        -  ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
+        - ``xmin``, ``xmax``, ``ymin``, ``ymax`` -- bounds for the axes, if
           not given, an attempt will be made to pick reasonable values
 
         OUTPUT:

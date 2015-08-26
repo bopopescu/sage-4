@@ -348,31 +348,41 @@ def _latex_product(coefficients, variables,
             separator = r" \mspace{-6mu}&\mspace{-6mu} "
     return separator.join(entries)
 
-def form_thin_long_triangle(k):
+def _form_thin_long_triangle(k):
     r"""
+    Generate a thin long triangle.
 
-    Generate a thin long triangle with vertices (0, 0), (1, 0), and (1/2, k)
-    for some given integer K, and return the triangle in Ax<=b form.
-    This thin long triangle is an example of a system with large Chvatal rank.
+    .. NOTE::
+
+        :meth:`_form_thin_long_triangle` is for internal use. Generate a thin long 
+        triangle with vertices `(0, 0)`, `(1, 0)`, and `(1/2, k)` for some given 
+        integer `k`, and return a matrix `A`, and an vector `b`, where the triangle 
+        is represented by a polytope defined by `Ax <= b`. This thin long triangle 
+        is an example of a system with large Chvatal rank.
 
     INPUT:
-    -``k``-- an integer indicating the y coordinate of the top vertex for the triangle
+
+    - ``k``-- an integer indicating the y coordinate of the top vertex for the triangle
 
     OUTPUT:
-    -``A`` -- a two by two matrix
-    -``b`` -- a two-element vector
+
+    - ``A`` -- a two by two matrix
+
+    - ``b`` -- a two-element vector
 
     EXAMPLES::
-        sage: from sage.numerical.interactive_simplex_method \
-        ....:     import form_thin_long_triangle
-        sage: A, b, = form_thin_long_triangle(4)
-        sage: A, b
-        (([-8, 1], [8, 1]), (0, 8))
 
+        sage: from sage.numerical.interactive_simplex_method \
+        ....:     import _form_thin_long_triangle
+        sage: A, b, = _form_thin_long_triangle(4)
+        sage: A, b
+        (
+            [-8  1]
+            [ 8  1], (0, 8)
+            )
     """
-    A = ([Integer(-2 * k), Integer(1)], [Integer(2 * k), Integer(1)])
-    b = (Integer(0), Integer(2 * k))
-    type(b[0])
+    A = matrix([[-2 * k , 1], [2 * k, 1]])
+    b = vector([0, 2 * k])
     return A, b
 
 @cached_function
@@ -3767,8 +3777,8 @@ class LPAbstractDictionary(SageObject):
             sage: number_of_cuts
             5
             sage: from sage.numerical.interactive_simplex_method \
-            ....:     import form_thin_long_triangle
-            sage: A1, b1 = form_thin_long_triangle(4)
+            ....:     import _form_thin_long_triangle
+            sage: A1, b1 = _form_thin_long_triangle(4)
             sage: c = (-1/27, 1/31)
             sage: P = InteractiveLPProblemStandardForm(A1, b1, c, integer_variables=True)
             sage: D = P.final_dictionary()
